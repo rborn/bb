@@ -147,6 +147,7 @@ import {
   type BuiltInSidebarSectionOptions,
   type BuiltInSidebarSectionOptionsById,
 } from "./BuiltInSidebarSection";
+import { TopLevelSidebarSection } from "./TopLevelSidebarSection";
 import { ReorderableSidebarSectionOrderList } from "./ReorderableSidebarSectionOrderList";
 import { useSidebarModeSectionOrder } from "./useSidebarModeSectionOrder";
 import { haveSameOrder } from "@/lib/stored-order";
@@ -912,7 +913,9 @@ interface ProjectModeSectionsProps extends BuiltInSectionRenderState {
   compareThreads: ThreadComparator;
   draftThreadIds: ReadonlySet<string>;
   effectivePinnedThreadIds: ReadonlySet<string>;
+  isCreatingProject?: boolean;
   isReady: boolean;
+  onNewProject?: () => void;
   onCreateProjectThread: (projectId: string) => void;
   onProjectSelect?: () => void;
   onToggleEnvironmentCollapsed: ToggleCollapsedId;
@@ -934,9 +937,11 @@ function ProjectModeSections({
   compareThreads,
   draftThreadIds,
   effectivePinnedThreadIds,
+  isCreatingProject,
   isReady,
   isSectionDisplayOptionsOpen,
   onCreateProjectThread,
+  onNewProject,
   onProjectSelect,
   onToggleCollapsed,
   onToggleEnvironmentCollapsed,
@@ -1087,12 +1092,30 @@ function ProjectModeSections({
     },
   };
 
-  return (
-    <ReorderableSidebarSectionOrderList
-      order={order}
-      reorderOrder={persistedOrder}
-      onOrderChange={onOrderChange}
+  const projectsEmptyHeader = projectRows.length === 0 ? (
+    <TopLevelSidebarSection
+      label="Projects"
+      actions={
+        onNewProject ? (
+          <ProjectListProjectsSectionActions
+            isCreatingProject={Boolean(isCreatingProject)}
+            onNewProject={onNewProject}
+          />
+        ) : undefined
+      }
     >
+      <div className="px-2 py-3 text-xs text-muted-foreground">No projects yet — add a local folder</div>
+    </TopLevelSidebarSection>
+  ) : null;
+
+  return (
+    <>
+      {projectsEmptyHeader}
+      <ReorderableSidebarSectionOrderList
+        order={order}
+        reorderOrder={persistedOrder}
+        onOrderChange={onOrderChange}
+      >
       {(sectionId, consumeClickSuppression) => {
         const builtInSection = renderBuiltInSidebarSection({
           sectionId,
@@ -1132,7 +1155,8 @@ function ProjectModeSections({
           />
         );
       }}
-    </ReorderableSidebarSectionOrderList>
+      </ReorderableSidebarSectionOrderList>
+    </>
   );
 }
 
@@ -2005,6 +2029,8 @@ function ProjectListComponent({
         renderProject={() => (
           <>
             <ProjectModeSections
+              isCreatingProject={isCreatingProject}
+              onNewProject={onNewProject}
               projects={projects ?? EMPTY_PROJECTS}
               threads={threads}
               draftThreadIds={draftThreadIds}
