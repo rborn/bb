@@ -43,7 +43,7 @@ import {
 } from "@/components/promptbox/PromptBoxInternal";
 import { usePromptVoice } from "@/components/promptbox/usePromptVoice";
 import { PermissionModePicker } from "@/components/pickers/PermissionModePicker";
-import { ComposerModePicker, type ComposerMode } from "@/components/promptbox/ComposerModePicker";
+import { ComposerModePicker, composerModeAtom, type ComposerMode } from "@/components/promptbox/ComposerModePicker";
 import {
   ExecutionControls,
   type ExecutionControlsProps,
@@ -253,7 +253,7 @@ function FollowUpPromptBoxWithComposer({
   const submitMode = composer.submitMode;
   const hasPendingInteraction =
     pendingInteraction !== null && pendingInteraction !== undefined;
-  const [draftMode, setDraftMode] = useState<ComposerMode>("agent");
+  const [draftMode, setDraftMode] = useAtom(composerModeAtom);
   // B: wire Ask/Agent to permission mode (Plan is read-only except plans/)
   const handleModeChange = (m: ComposerMode) => {
     setDraftMode(m);

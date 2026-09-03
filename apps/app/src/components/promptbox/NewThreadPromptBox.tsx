@@ -53,7 +53,7 @@ import {
   parseEnvironmentValue,
 } from "@/components/pickers/environment-picker-value";
 import { PermissionModePicker } from "@/components/pickers/PermissionModePicker";
-import { ComposerModePicker, type ComposerMode } from "@/components/promptbox/ComposerModePicker";
+import { ComposerModePicker, composerModeAtom, type ComposerMode } from "@/components/promptbox/ComposerModePicker";
 import {
   ProjectSelector,
   type ProjectSelectorCreateProjectConfig,
@@ -343,7 +343,7 @@ const DefaultNewThreadComposer = memo(function DefaultNewThreadComposer({
     () => permissionDisplayForPromptMode(promptModeInput),
     [promptModeInput],
   );
-  const [draftMode, setDraftMode] = useState<ComposerMode>("agent");
+  const [draftMode, setDraftMode] = useAtom(composerModeAtom);
   // B: wire dropdown (UI only for new thread — execution permission wired on next turn)
   const handleModeChange = (m: ComposerMode) => setDraftMode(m);
   const permissionPickerDisabledByPlanMode = isPlanModePrompt(promptModeInput);
