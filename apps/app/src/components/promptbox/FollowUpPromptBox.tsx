@@ -44,9 +44,9 @@ import {
 import { usePromptVoice } from "@/components/promptbox/usePromptVoice";
 import { PermissionModePicker } from "@/components/pickers/PermissionModePicker";
 import { useAtom } from "jotai";
-import { ComposerModePicker, composerModeAtom, composerModeByThreadAtom, type ComposerMode } from "@/components/promptbox/ComposerModePicker";
+import { ComposerModePicker, composerModeAtom, composerModeByThreadAtom, pendingNewThreadModeAtom, type ComposerMode } from "@/components/promptbox/ComposerModePicker";
 import { useRouteState } from "@/hooks/useRouteState";
-import { planFileNameFromPrompt } from "@/lib/planMode";
+import { planFileNameFromPrompt, PLANS_AGENTS_SNIPPET } from "@/lib/planMode";
 import {
   ExecutionControls,
   type ExecutionControlsProps,
@@ -257,21 +257,26 @@ function FollowUpPromptBoxWithComposer({
   const hasPendingInteraction =
     pendingInteraction !== null && pendingInteraction !== undefined;
   const { threadId } = useRouteState();
-  const [globalMode] = useAtom(composerModeAtom);
+  const [pendingMode, setPendingMode] = useAtom(pendingNewThreadModeAtom);
   const [modeByThread, setModeByThread] = useAtom(composerModeByThreadAtom);
-  const draftMode = (threadId ? modeByThread[threadId] : undefined) ?? globalMode ?? ("agent" as ComposerMode);
+  const draftMode = (threadId ? modeByThread[threadId] : undefined) ?? ("agent" as ComposerMode);
   const setDraftMode = (m: ComposerMode) => {
     if (!threadId) return;
     setModeByThread((prev) => ({ ...prev, [threadId]: m }));
   };
+  const planInstructionFor = (msg: string) => {
+    const file = planFileNameFromPrompt(msg);
+    return `Write plan to ${file} (create plans/ dir if missing) for: ${msg}\nAfter writing, ensure AGENTS.md has:\n${PLANS_AGENTS_SNIPPET.trim()}`;
+  };
   const hasSyncedModeRef = useRef<string | null>(null);
   useEffect(() => {
     if (!threadId || modeByThread[threadId] !== undefined || hasSyncedModeRef.current === threadId) return;
-    if (globalMode !== "agent") {
+    if (pendingMode && pendingMode !== "agent") {
       hasSyncedModeRef.current = threadId;
-      setModeByThread((prev) => ({ ...prev, [threadId]: globalMode }));
+      setModeByThread((prev) => ({ ...prev, [threadId]: pendingMode }));
+      setPendingMode(null);
     }
-  }, [threadId, globalMode, modeByThread, setModeByThread]);
+  }, [threadId, pendingMode, modeByThread, setModeByThread, setPendingMode]);
   // B: wire Ask/Agent to permission mode (Plan is read-only except plans/)
   const handleModeChange = (m: ComposerMode) => {
     setDraftMode(m);
@@ -624,6 +629,20 @@ function FollowUpPromptBoxWithComposer({
     : undefined;
   const executionControlsDisabled =
     (executionReadOnly ?? readOnly ?? false) || hasPendingInteraction;
+  const wrappedOnSubmit = useMemo(() => {
+    if (draftMode !== "plan") return composer.onSubmit;
+    const orig = composer.onSubmit;
+    return () => {
+      const raw = composer.message.trim();
+      if (!raw) return orig();
+      const injected = planInstructionFor(raw);
+      // mutate composer.message via its setter if available
+      if ((composer as any).setMessage) (composer as any).setMessage(injected);
+      else (composer as any).message = injected;
+      return orig();
+    };
+  }, [composer, draftMode]);
+
   const footerStart = useMemo(
     () => (
       <div className="flex items-center gap-2">

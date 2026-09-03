@@ -53,7 +53,9 @@ import {
   parseEnvironmentValue,
 } from "@/components/pickers/environment-picker-value";
 import { PermissionModePicker } from "@/components/pickers/PermissionModePicker";
-import { ComposerModePicker, composerModeAtom, type ComposerMode } from "@/components/promptbox/ComposerModePicker";
+import { useAtom } from "jotai";
+import { planFileNameFromPrompt, PLANS_AGENTS_SNIPPET } from "@/lib/planMode";
+import { ComposerModePicker, composerModeAtom, pendingNewThreadModeAtom, type ComposerMode } from "@/components/promptbox/ComposerModePicker";
 import {
   ProjectSelector,
   type ProjectSelectorCreateProjectConfig,
@@ -344,8 +346,13 @@ const DefaultNewThreadComposer = memo(function DefaultNewThreadComposer({
     [promptModeInput],
   );
   const [draftMode, setDraftMode] = useAtom(composerModeAtom);
+  const [, setPending] = useAtom(pendingNewThreadModeAtom);
   // B: wire dropdown (UI only for new thread — execution permission wired on next turn)
-  const handleModeChange = (m: ComposerMode) => setDraftMode(m);
+  const handleModeChange = (m: ComposerMode) => { setDraftMode(m); setPending(m); };
+  const planInstructionFor = (msg: string) => {
+    const file = planFileNameFromPrompt(msg);
+    return `Write plan to ${file} (create plans/ dir if missing) for: ${msg}\nAfter writing, ensure AGENTS.md has:\n${PLANS_AGENTS_SNIPPET.trim()}`;
+  };
   const permissionPickerDisabledByPlanMode = isPlanModePrompt(promptModeInput);
   const submitTitle = isSubmitting
     ? "Submitting..."
