@@ -31,6 +31,13 @@ import {
   type ResolvedThreadRuntimeCommandConfig,
   type ThreadRuntimeCommandEnvironment,
 } from "./thread-runtime-config.js";
+import { searchMemories, memoriesContext } from "@bb/memsearch";
+import { getProject, getEnvironment } from "@bb/db";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import {
+  findLocalPathProjectSourceForHost,
+} from "@bb/domain";
 import {
   buildExistingThreadExecutionInput,
   resolveExistingThreadExecutionPlan,
@@ -302,6 +309,15 @@ export async function buildThreadStartCommand(
   };
 }
 
+function buildMemoriesSeed(workspacePath: string, input: { text?: string }[]): { text: string } | null {
+  try {
+    const query = input.filter(i => (i as any).text).map(i => (i as any).text).join(" ").slice(0, 4000);
+    if (!query.trim() || !workspacePath) return null;
+    const ctx = memoriesContext(workspacePath, query, 5);
+    return ctx ? { text: ctx } : null;
+  } catch { return null; }
+}
+
 function buildPreparedTurnSubmitCommandPayload(
   args: PreparedTurnSubmitCommandBuildArgs,
 ): PreparedTurnSubmitCommandPayload {
@@ -309,18 +325,20 @@ function buildPreparedTurnSubmitCommandPayload(
     args.deps,
     args.runtimeContext.providerId,
   );
+  const memSeed = buildMemoriesSeed(args.runtimeContext.workspacePath, args.input as any);
+  const inputWithMem = memSeed ? [{ visibility: "agent-only" as const, text: memSeed.text } as any, ...args.input] : args.input;
   return {
     type: "turn.submit",
     environmentId: args.environmentId,
     threadId: args.threadId,
     bridgeLaunch,
-    input: args.input,
+    input: inputWithMem,
     ...(args.inputGroups !== undefined
       ? { inputGroups: args.inputGroups }
       : {}),
     options: toRuntimeExecutionOptions({
       ...args,
-      input: args.input,
+      input: inputWithMem as any,
       projectId: args.runtimeContext.projectId,
       providerId: args.runtimeContext.providerId,
     }),
