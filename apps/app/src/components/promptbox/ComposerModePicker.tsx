@@ -4,6 +4,7 @@ import { useAtom } from "jotai/react";
 import { cn } from "@bb/shared-ui/lib/utils";
 
 export const composerModeAtom = atom<ComposerMode>("agent");
+export const composerModeByThreadAtom = atom<Record<string, ComposerMode>>({});
 
 export type ComposerMode = "plan" | "ask" | "agent";
 
