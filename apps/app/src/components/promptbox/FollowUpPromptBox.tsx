@@ -43,6 +43,7 @@ import {
 } from "@/components/promptbox/PromptBoxInternal";
 import { usePromptVoice } from "@/components/promptbox/usePromptVoice";
 import { PermissionModePicker } from "@/components/pickers/PermissionModePicker";
+import { ComposerModePicker, type ComposerMode } from "@/components/promptbox/ComposerModePicker";
 import {
   ExecutionControls,
   type ExecutionControlsProps,
@@ -252,6 +253,7 @@ function FollowUpPromptBoxWithComposer({
   const submitMode = composer.submitMode;
   const hasPendingInteraction =
     pendingInteraction !== null && pendingInteraction !== undefined;
+  const [draftMode, setDraftMode] = useState<ComposerMode>("agent");
   const canQueueFollowUp = submitMode.kind === "queue";
   const canSubmit = submitMode.kind === "ready" || submitMode.kind === "queue";
   const isStopping =
@@ -599,9 +601,12 @@ function FollowUpPromptBoxWithComposer({
     (executionReadOnly ?? readOnly ?? false) || hasPendingInteraction;
   const footerStart = useMemo(
     () => (
-      <ExecutionControls {...execution} disabled={executionControlsDisabled} />
+      <div className="flex items-center gap-2">
+        <ComposerModePicker value={draftMode} onChange={setDraftMode} disabled={hasPendingInteraction} />
+        <ExecutionControls {...execution} disabled={executionControlsDisabled} />
+      </div>
     ),
-    [execution, executionControlsDisabled],
+    [execution, executionControlsDisabled, draftMode, hasPendingInteraction],
   );
   const selectedProviderPlanModeCopy = execution.provider.options?.find(
     (option) => option.value === execution.provider.selectedId,
