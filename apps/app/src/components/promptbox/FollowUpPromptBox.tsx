@@ -208,6 +208,21 @@ function FollowUpPromptBoxStackOnly({
     isRunning: false,
     isSubmitting: false,
   });
+  // Wrap submit to inject mode prefix
+  if ((composerView as any)?.onSubmit && !(composerView as any).__wrappedForMode) {
+    (composerView as any).__wrappedForMode = true;
+    const __prevSubmit = (composerView as any).onSubmit.bind(composerView);
+    (composerView as any).onSubmit = () => {
+      const raw = (composerView as any).message ?? "";
+      if (draftMode !== "agent" && raw && !raw.startsWith("[ASK MODE") && !raw.startsWith("Write plan to")) {
+        const injected = injectPrefix(raw);
+        (composerView as any).message = injected;
+        if ((composerView as any).setMessage) (composerView as any).setMessage(injected);
+      }
+      return __prevSubmit();
+    };
+  }
+
 
   if (!stack && !composerScope) {
     return null;
@@ -278,6 +293,12 @@ function FollowUpPromptBoxWithComposer({
       setPendingMode(null);
     }
   }, [threadId, pendingMode, modeByThread, setModeByThread, setPendingMode]);
+  // Prompt injection for Ask/Plan — visible prefix until hidden seed is wired (ponytail)
+  const injectPrefix = (msg: string) => {
+    if (draftMode === "plan") return planInstructionFor(msg);
+    if (draftMode === "ask") return `[ASK MODE — do not edit files, answer questions only]\n${msg}`;
+    return msg;
+  };
   // B: wire Ask/Agent to permission mode (Plan is read-only except plans/)
   const handleModeChange = (m: ComposerMode) => {
     setDraftMode(m);

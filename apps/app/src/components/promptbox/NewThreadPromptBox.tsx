@@ -253,6 +253,20 @@ export const NewThreadPromptBoxUI = memo(function NewThreadPromptBoxUI({
     isRunning: false,
     isSubmitting,
   });
+  if ((composerView as any)?.onSubmit && !(composerView as any).__wrappedForMode) {
+    (composerView as any).__wrappedForMode = true;
+    const __prevNt = (composerView as any).onSubmit.bind(composerView);
+    (composerView as any).onSubmit = () => {
+      const raw = (composerView as any).message ?? "";
+      if (draftMode !== "agent" && raw && !raw.startsWith("[ASK MODE") && !raw.startsWith("Write plan to")) {
+        const injected = injectPrefixNt(raw);
+        (composerView as any).message = injected;
+        if ((composerView as any).setMessage) (composerView as any).setMessage(injected);
+      }
+      return __prevNt();
+    };
+  }
+
 
   const controller = useComposerExtensionController({
     host: pluginComposerHost ?? null,
@@ -350,6 +364,12 @@ const DefaultNewThreadComposer = memo(function DefaultNewThreadComposer({
   const [, setPending] = useAtom(pendingNewThreadModeAtom);
   // B: wire dropdown (UI only for new thread — execution permission wired on next turn)
   const handleModeChange = (m: ComposerMode) => { setDraftMode(m); setPending(m); };
+  const injectPrefixNt = (msg: string) => {
+    if (draftMode === "plan") return planInstructionFor(msg);
+    if (draftMode === "ask") return `[ASK MODE — do not edit files, answer questions only]\n${msg}`;
+    return msg;
+  };
+
   const planInstructionFor = (msg: string) => {
     const file = planFileNameFromPrompt(msg);
     return `Write plan to ${file} (create plans/ dir if missing) for: ${msg}\nAfter writing, ensure AGENTS.md has:\n${PLANS_AGENTS_SNIPPET.trim()}`;
