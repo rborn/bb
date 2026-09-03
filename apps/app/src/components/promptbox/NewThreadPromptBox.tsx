@@ -344,6 +344,8 @@ const DefaultNewThreadComposer = memo(function DefaultNewThreadComposer({
     [promptModeInput],
   );
   const [draftMode, setDraftMode] = useState<ComposerMode>("agent");
+  // B: wire dropdown (UI only for new thread — execution permission wired on next turn)
+  const handleModeChange = (m: ComposerMode) => setDraftMode(m);
   const permissionPickerDisabledByPlanMode = isPlanModePrompt(promptModeInput);
   const submitTitle = isSubmitting
     ? "Submitting..."
@@ -392,7 +394,7 @@ const DefaultNewThreadComposer = memo(function DefaultNewThreadComposer({
         minHeight={NEW_THREAD_PROMPT_BOX_MIN_HEIGHT}
         placeholder={placeholder}
         header={modeConfig.header}
-        footerStart={<div className="flex items-center gap-2"><ComposerModePicker value={draftMode} onChange={setDraftMode} /><ExecutionControls {...execution} /></div>}
+        footerStart={<div className="flex items-center gap-2"><ComposerModePicker value={draftMode} onChange={handleModeChange} /><ExecutionControls {...execution} /></div>}
       />
       {}
       <div className="mt-1 flex select-none items-center justify-between gap-2 px-3.5">

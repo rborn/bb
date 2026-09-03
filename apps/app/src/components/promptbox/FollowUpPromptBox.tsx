@@ -254,6 +254,13 @@ function FollowUpPromptBoxWithComposer({
   const hasPendingInteraction =
     pendingInteraction !== null && pendingInteraction !== undefined;
   const [draftMode, setDraftMode] = useState<ComposerMode>("agent");
+  // B: wire Ask/Agent to permission mode (Plan is read-only except plans/)
+  const handleModeChange = (m: ComposerMode) => {
+    setDraftMode(m);
+    if (m === "ask" && permission.value !== "accept-edits" && permission.supported) permission.onChange("accept-edits" as never);
+    if (m === "agent" && permission.value !== "full" && permission.supported) permission.onChange("full" as never);
+    // plan keeps permission but will be enforced via plan file gate in provider
+  };
   const canQueueFollowUp = submitMode.kind === "queue";
   const canSubmit = submitMode.kind === "ready" || submitMode.kind === "queue";
   const isStopping =
@@ -602,7 +609,7 @@ function FollowUpPromptBoxWithComposer({
   const footerStart = useMemo(
     () => (
       <div className="flex items-center gap-2">
-        <ComposerModePicker value={draftMode} onChange={setDraftMode} disabled={hasPendingInteraction} />
+        <ComposerModePicker value={draftMode} onChange={handleModeChange} disabled={hasPendingInteraction} />
         <ExecutionControls {...execution} disabled={executionControlsDisabled} />
       </div>
     ),
