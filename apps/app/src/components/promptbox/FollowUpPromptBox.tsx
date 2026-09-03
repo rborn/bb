@@ -46,6 +46,7 @@ import { PermissionModePicker } from "@/components/pickers/PermissionModePicker"
 import { useAtom } from "jotai";
 import { ComposerModePicker, composerModeAtom, composerModeByThreadAtom, type ComposerMode } from "@/components/promptbox/ComposerModePicker";
 import { useRouteState } from "@/hooks/useRouteState";
+import { planFileNameFromPrompt } from "@/lib/planMode";
 import {
   ExecutionControls,
   type ExecutionControlsProps,
@@ -256,12 +257,21 @@ function FollowUpPromptBoxWithComposer({
   const hasPendingInteraction =
     pendingInteraction !== null && pendingInteraction !== undefined;
   const { threadId } = useRouteState();
+  const [globalMode] = useAtom(composerModeAtom);
   const [modeByThread, setModeByThread] = useAtom(composerModeByThreadAtom);
-  const draftMode = (threadId ? modeByThread[threadId] : undefined) ?? "agent" as ComposerMode;
+  const draftMode = (threadId ? modeByThread[threadId] : undefined) ?? globalMode ?? ("agent" as ComposerMode);
   const setDraftMode = (m: ComposerMode) => {
     if (!threadId) return;
     setModeByThread((prev) => ({ ...prev, [threadId]: m }));
   };
+  const hasSyncedModeRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!threadId || modeByThread[threadId] !== undefined || hasSyncedModeRef.current === threadId) return;
+    if (globalMode !== "agent") {
+      hasSyncedModeRef.current = threadId;
+      setModeByThread((prev) => ({ ...prev, [threadId]: globalMode }));
+    }
+  }, [threadId, globalMode, modeByThread, setModeByThread]);
   // B: wire Ask/Agent to permission mode (Plan is read-only except plans/)
   const handleModeChange = (m: ComposerMode) => {
     setDraftMode(m);
