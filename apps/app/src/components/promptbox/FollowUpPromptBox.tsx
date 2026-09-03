@@ -208,6 +208,7 @@ function FollowUpPromptBoxStackOnly({
     isRunning: false,
     isSubmitting: false,
   });
+
   if (!stack && !composerScope) {
     return null;
   }
@@ -284,6 +285,10 @@ function FollowUpPromptBoxWithComposer({
     if (m === "agent" && permission.value !== "full" && permission.supported) permission.onChange("full" as never);
     // plan keeps permission but will be enforced via plan file gate in provider
   };
+  useEffect(() => {
+    if (draftMode === "ask" && permission.value !== "accept-edits" && permission.supported) permission.onChange("accept-edits" as never);
+    if (draftMode === "agent" && permission.value !== "full" && permission.supported) permission.onChange("full" as never);
+  }, [draftMode, permission.value, permission.supported, permission.onChange]);
   const canQueueFollowUp = submitMode.kind === "queue";
   const canSubmit = submitMode.kind === "ready" || submitMode.kind === "queue";
   const isStopping =
@@ -629,19 +634,6 @@ function FollowUpPromptBoxWithComposer({
     : undefined;
   const executionControlsDisabled =
     (executionReadOnly ?? readOnly ?? false) || hasPendingInteraction;
-  const wrappedOnSubmit = useMemo(() => {
-    if (draftMode !== "plan") return composer.onSubmit;
-    const orig = composer.onSubmit;
-    return () => {
-      const raw = composer.message.trim();
-      if (!raw) return orig();
-      const injected = planInstructionFor(raw);
-      // mutate composer.message via its setter if available
-      if ((composer as any).setMessage) (composer as any).setMessage(injected);
-      else (composer as any).message = injected;
-      return orig();
-    };
-  }, [composer, draftMode]);
 
   const footerStart = useMemo(
     () => (

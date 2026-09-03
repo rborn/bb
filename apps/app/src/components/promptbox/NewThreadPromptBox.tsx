@@ -253,6 +253,7 @@ export const NewThreadPromptBoxUI = memo(function NewThreadPromptBoxUI({
     isRunning: false,
     isSubmitting,
   });
+
   const controller = useComposerExtensionController({
     host: pluginComposerHost ?? null,
     view: composerView,
