@@ -45,6 +45,7 @@ import { usePromptVoice } from "@/components/promptbox/usePromptVoice";
 import { PermissionModePicker } from "@/components/pickers/PermissionModePicker";
 import { useAtom } from "jotai";
 import { ComposerModePicker, composerModeAtom, composerModeByThreadAtom, type ComposerMode } from "@/components/promptbox/ComposerModePicker";
+import { useRouteState } from "@/hooks/useRouteState";
 import {
   ExecutionControls,
   type ExecutionControlsProps,
@@ -617,6 +618,9 @@ function FollowUpPromptBoxWithComposer({
     () => (
       <div className="flex items-center gap-2">
         <ComposerModePicker value={draftMode} onChange={handleModeChange} disabled={hasPendingInteraction} />
+        {draftMode === "plan" && composer.message.trim() && (
+          <span className="hidden text-[10px] text-amber-600 dark:text-amber-400 sm:inline">→ {planFileNameFromPrompt(composer.message)}</span>
+        )}
         <ExecutionControls {...execution} disabled={executionControlsDisabled} />
       </div>
     ),
