@@ -39,20 +39,20 @@ export function ensureMemDir(projectPath: string): string {
   return dir;
 }
 
-const DURABLE = /(remember|don't forget|do not forget|prefer|my .{1,40} is|we use|we always|convention|i (have|own|like|use))/i;
-
+// ponytail: no language-specific regex gate — the extractor LLM judges durability
+// directly (cheap enough at flash-lite class). Only shape-filter here.
 export function extractCandidates(...texts: (string | undefined)[]): string[] {
   const out: string[] = [];
   for (const text of texts) {
     if (!text) continue;
     for (const sentence of text.split(/(?<=[.!?\n])\s+/)) {
       const s = sentence.trim().replace(/\s+/g, " ");
-      if (s.length > 12 && s.length < 600 && DURABLE.test(s)) {
+      if (s.length > 12 && s.length < 600 && !s.startsWith("/") && !s.startsWith("bb ")) {
         out.push(s.length > MAX_CANDIDATE_CHARS ? `${s.slice(0, MAX_CANDIDATE_CHARS)}…` : s);
       }
     }
   }
-  return [...new Set(out)];
+  return [...new Set(out)].slice(0, 8);
 }
 
 export function appendBullets(projectPath: string, threadId: string, bullets: string[]): number {
@@ -129,17 +129,26 @@ function bucketFor(cwd: string): string {
   return cwd;
 }
 
-async function resolveProjectPath(bb: BbPluginApi, projectId: string): Promise<string | null> {
+async function resolveProjectPath(bb: BbPluginApi, projectId: string, ctx?: any): Promise<string | null> {
   const cached = pathCache.get(projectId);
   if (cached) return cached;
   try {
     const res = (await (bb.sdk.projects as any).get({ projectId })) as any;
-    const p: string | undefined = res?.project?.path ?? res?.path;
-    if (p) pathCache.set(projectId, p);
-    return p ?? null;
-  } catch {
-    return null;
+    const direct: string | undefined = res?.project?.path ?? res?.path;
+    if (direct) { pathCache.set(projectId, direct); return direct; }
+    // local_path projects: path lives in project_sources, not on the project row
+    const sources: any[] = res?.project?.sources ?? res?.sources ?? [];
+    const local: string | undefined = sources.map((s) => s?.localPath ?? s?.path).find(Boolean);
+    if (local) { pathCache.set(projectId, local); return local; }
+  } catch { /* fall through to env fallback */ }
+  // CLI fallback: same env-based resolution the idle handler uses
+  const envId = ctx?.environmentId;
+  if (envId) {
+    const envPath = await resolveEnvPath(bb, envId);
+    const p = envPath ? bucketFor(envPath) : null;
+    if (p) { pathCache.set(projectId, p); return p; }
   }
+  return null;
 }
 
 function textOf(msg: any): string | undefined {
@@ -268,7 +277,7 @@ export default function plugin(bb: BbPluginApi): void {
     // fire-and-forget: embed new bullets for semantic search (never blocks the turn)
     ensureVecIndex(projectPath, recentBullets(projectPath)).then(
       (c) => log(`vec index: ${c} bullets`, thread?.id),
-      () => {},
+      (e) => log(`vec index FAILED`, thread?.id, String(e?.message ?? e).slice(0, 160)),
     );
   }) as never);
 
@@ -276,7 +285,7 @@ export default function plugin(bb: BbPluginApi): void {
     extractorModel: {
       type: "string",
       label: "Extractor model",
-      description: "Optional provider/model override for the memory extractor (e.g. pi/muse-spark-1.2). Empty = same provider/model as the originating thread.",
+      description: "Pi model path for the memory extractor (e.g. google/gemini-2.5-flash-lite). Empty = same model as the originating thread.",
       default: "",
     },
   });
@@ -295,7 +304,6 @@ export default function plugin(bb: BbPluginApi): void {
       const values = await (settings as any)?.get?.();
       override = String(values?.extractorModel ?? "").trim();
     } catch { /* defaults */ }
-    const [overrideProvider, ...overrideRest] = override.split("/");
     const spawnArgs: any = {
       projectId: opts.projectId,
       origin: "plugin",
@@ -303,9 +311,9 @@ export default function plugin(bb: BbPluginApi): void {
       title: "memsearch extractor",
       prompt,
     };
-    if (overrideRest.length > 0) {
-      spawnArgs.providerId = overrideProvider;
-      spawnArgs.model = overrideRest.join("/");
+    if (override) {
+      spawnArgs.providerId = "pi";
+      spawnArgs.model = override;
     } else {
       if (opts.thread?.providerId) spawnArgs.providerId = opts.thread.providerId;
       if (opts.thread?.model) spawnArgs.model = opts.thread.model;
@@ -362,7 +370,7 @@ export default function plugin(bb: BbPluginApi): void {
       if (!projectId) {
         return { exitCode: 1, stdout: "", stderr: "memsearch needs a project thread" };
       }
-      const projectPath = await resolveProjectPath(bb, projectId);
+      const projectPath = await resolveProjectPath(bb, projectId, ctx);
       if (!projectPath) {
         return { exitCode: 1, stdout: "", stderr: "cannot resolve project path" };
       }
@@ -377,7 +385,7 @@ export default function plugin(bb: BbPluginApi): void {
           // FTS miss → semantic fallback (paraphrases FTS can't see).
           // Builds the index on first use so old bullets need no re-save.
           const all = recentBullets(projectPath);
-          await ensureVecIndex(projectPath, all).catch(() => 0);
+          await ensureVecIndex(projectPath, all).catch((e) => log(`vec search index FAILED`, String(e?.message ?? e).slice(0, 160)));
           const sem = await vecSearch(projectPath, q, all, 5);
           for (const s of sem) if (!hits.includes(s)) hits.push(s);
         }
@@ -405,12 +413,12 @@ export default function plugin(bb: BbPluginApi): void {
           else return out({ saved: 0 }, "extractor judged nothing durable");
         } catch { /* keep heuristic bullets */ }
         const n = appendBullets(projectPath, targetId, bullets);
-        if (n > 0) ensureVecIndex(projectPath, recentBullets(projectPath)).catch(() => {});
+        if (n > 0) ensureVecIndex(projectPath, recentBullets(projectPath)).catch((e) => log(`vec backfill index FAILED`, String(e?.message ?? e).slice(0, 160)));
         return out({ saved: n }, n > 0 ? `backfilled ${n} from ${targetId}` : "nothing to save");
       }
       if (command === "remember") {
         const n = appendBullets(projectPath, (ctx as any)?.threadId ?? "cli", [args.join(" ")]);
-        if (n > 0) ensureVecIndex(projectPath, recentBullets(projectPath)).catch(() => {});
+        if (n > 0) ensureVecIndex(projectPath, recentBullets(projectPath)).catch((e) => log(`vec remember index FAILED`, String(e?.message ?? e).slice(0, 160)));
         return out({ saved: n }, n > 0 ? `saved: ${args.join(" ")}` : "nothing to save");
       }
       if (command === "transcript") {

@@ -167,7 +167,7 @@ export const OFFICIAL_PLUGINS = [
   {
     name: "memsearch",
     pluginId: "memsearch",
-    defaultEnabled: false,
+    defaultEnabled: true,
   },
   {
     name: "tasks",
