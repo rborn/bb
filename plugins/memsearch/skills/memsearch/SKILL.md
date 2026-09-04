@@ -7,11 +7,12 @@ description: Automatic project memory. Search prior project knowledge before ans
 
 Automatic project memory for agents. Daily Markdown files are the source of
 truth (`<project>/.bb/memsearch/YYYY-MM-DD.md`); capture runs on thread idle,
-recall injects at turn start. No vector DB — FTS over recent files.
+recall injects at turn start. Hybrid recall: FTS first, local MiniLM embeddings
+(onnxruntime-web, no native deps) when FTS finds <2 hits.
 
 ## Commands
 
-- `bb memsearch search "<query>"` — ranked bullets (FTS term overlap)
+- `bb memsearch search "<query>"` — ranked bullets (FTS, semantic fallback for paraphrases)
 - `bb memsearch remember "<fact>"` — save explicitly (auto-capture usually handles it)
 - `bb memsearch status` — list memory files for this project
 

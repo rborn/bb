@@ -64,6 +64,22 @@ describe("thread.idle pipeline", () => {
     expect(memFiles(projectDir).length).toBe(0);
   });
 
+  it("backfill extracts an older thread on demand", async () => {
+    const { host, projectDir } = await setup({
+      extractorOutput: "- Owns a blue car (user fact)",
+    });
+    const res = await host.harness.runCli(["backfill", "thr_old", "--json"], {
+      projectId: "proj_backfill", // distinct: pathCache is module-level across tests
+      threadId: "thr_now",
+    });
+    expect(res.exitCode).toBe(0);
+    expect(JSON.parse(res.stdout).saved).toBe(1);
+    await vi.waitFor(() => expect(memFiles(projectDir).length).toBe(1), { timeout: 5000 });
+    const body = readFileSync(join(projectDir, ".bb", "memsearch", memFiles(projectDir)[0]), "utf8");
+    expect(body).toContain("blue car");
+    expect(body).toContain("thr_old"); // source attribution, not the invoking thread
+  }, 20000); // backfill loads the real vec model on first index
+
   it("skips personal projects", async () => {
     const { host, projectDir } = await setup({ extractorOutput: "- fact" });
     await host.harness.emitThreadEvent("thread.idle", {

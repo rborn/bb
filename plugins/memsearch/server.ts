@@ -8,6 +8,7 @@ import {
 import { execFileSync } from "node:child_process";
 import path, { join } from "node:path";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
+import { ensureVecIndex, vecSearch } from "./vec.js";
 
 // Automatic project memory. Daily Markdown files are the source of truth
 // (<project>/.bb/memsearch/YYYY-MM-DD.md); recall is FTS over recent files.
@@ -264,6 +265,11 @@ export default function plugin(bb: BbPluginApi): void {
     } catch (e) { log("extractor failed, heuristic fallback", thread?.id, String((e as any)?.message ?? e).slice(0, 120)); }
     const n = appendBullets(projectPath, thread.id, bullets);
     log(`saved ${n} bullets`, thread?.id, projectPath);
+    // fire-and-forget: embed new bullets for semantic search (never blocks the turn)
+    ensureVecIndex(projectPath, recentBullets(projectPath)).then(
+      (c) => log(`vec index: ${c} bullets`, thread?.id),
+      () => {},
+    );
   }) as never);
 
   const settings = bb.settings.define({
@@ -345,6 +351,7 @@ export default function plugin(bb: BbPluginApi): void {
       { name: "search", summary: "Search project memory", usage: "bb memsearch search <query...> [--json]" },
       { name: "remember", summary: "Save a memory explicitly", usage: "bb memsearch remember <text...> [--reason TEXT] [--json]" },
       { name: "transcript", summary: "Dump a thread transcript for full-fidelity recall", usage: "bb memsearch transcript <threadId> [--limit N] [--json]" },
+      { name: "backfill", summary: "Extract memories from an older thread", usage: "bb memsearch backfill <threadId> [--json]" },
       { name: "status", summary: "Show memory files for this project", usage: "bb memsearch status [--json]" },
     ],
     async run(argv, ctx) {
@@ -364,11 +371,46 @@ export default function plugin(bb: BbPluginApi): void {
           ? { exitCode: 0, stdout: JSON.stringify(obj), stderr: "" }
           : { exitCode: 0, stdout: text, stderr: "" };
       if (command === "search") {
-        const hits = searchBullets(projectPath, args.join(" "), 8);
+        const q = args.join(" ");
+        const hits = searchBullets(projectPath, q, 8);
+        if (hits.length < 2) {
+          // FTS miss → semantic fallback (paraphrases FTS can't see).
+          // Builds the index on first use so old bullets need no re-save.
+          const all = recentBullets(projectPath);
+          await ensureVecIndex(projectPath, all).catch(() => 0);
+          const sem = await vecSearch(projectPath, q, all, 5);
+          for (const s of sem) if (!hits.includes(s)) hits.push(s);
+        }
         return out({ hits }, hits.length > 0 ? hits.join("\n") : "no memories found");
+      }
+      if (command === "backfill") {
+        const targetId = args[0] ?? (ctx as any)?.threadId;
+        if (!targetId) return { exitCode: 1, stdout: "", stderr: "usage: bb memsearch backfill <threadId>" };
+        let userTexts: string[] = [];
+        try {
+          const outline = await (bb.sdk.threads as any).conversationOutline({ threadId: targetId });
+          userTexts = userPreviewsFromOutline(outline, 10);
+        } catch (e) {
+          return { exitCode: 1, stdout: "", stderr: `cannot read thread: ${String((e as any)?.message ?? e).slice(0, 120)}` };
+        }
+        const candidates = extractCandidates(...userTexts);
+        if (candidates.length === 0) return out({ saved: 0 }, "no durable content found");
+        const recent = recentBullets(projectPath);
+        let bullets = candidates;
+        try {
+          const extracted = await runExtractor({
+            projectId, thread: { id: targetId }, intent: userTexts[userTexts.length - 1], candidates, recent,
+          });
+          if (extracted.length > 0) bullets = extracted;
+          else return out({ saved: 0 }, "extractor judged nothing durable");
+        } catch { /* keep heuristic bullets */ }
+        const n = appendBullets(projectPath, targetId, bullets);
+        if (n > 0) ensureVecIndex(projectPath, recentBullets(projectPath)).catch(() => {});
+        return out({ saved: n }, n > 0 ? `backfilled ${n} from ${targetId}` : "nothing to save");
       }
       if (command === "remember") {
         const n = appendBullets(projectPath, (ctx as any)?.threadId ?? "cli", [args.join(" ")]);
+        if (n > 0) ensureVecIndex(projectPath, recentBullets(projectPath)).catch(() => {});
         return out({ saved: n }, n > 0 ? `saved: ${args.join(" ")}` : "nothing to save");
       }
       if (command === "transcript") {
@@ -397,7 +439,18 @@ export default function plugin(bb: BbPluginApi): void {
       }
       const dir = memDir(projectPath);
       const files = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".md")) : [];
-      return out({ files }, files.length > 0 ? files.join("\n") : "no memory files yet");
+      let vecIndexed = 0;
+      try {
+        const raw = readFileSync(join(dir, "vec", "index.json"), "utf8");
+        vecIndexed = Object.keys(JSON.parse(raw)).length;
+      } catch { /* no index yet */ }
+      const summary = { files, bullets: recentBullets(projectPath).length, vecIndexed };
+      const text = [
+        `files: ${files.length > 0 ? files.join(", ") : "none"}`,
+        `bullets: ${summary.bullets}`,
+        `vecIndexed: ${vecIndexed}`,
+      ].join("\n");
+      return out(summary, files.length > 0 ? text : "no memory files yet");
     },
   });
 }
