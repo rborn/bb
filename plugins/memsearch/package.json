@@ -1,0 +1,43 @@
+{
+  "name": "bb-plugin-memsearch",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Automatic project memory for agents: dailyMarkdown truth, auto-capture on thread idle, auto-recall at turn start. Folder-bound, no vector DB.",
+  "license": "MIT",
+  "homepage": "https://github.com/get-bb/bb#readme",
+  "bugs": {
+    "url": "https://github.com/get-bb/bb/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/get-bb/bb.git",
+    "directory": "plugins/memsearch"
+  },
+  "files": [
+    "dist",
+    "server.ts",
+    "skills",
+    "README.md"
+  ],
+  "devDependencies": {
+    "@get-bb/plugin-sdk": "workspace:*",
+    "@types/node": "^22.0.0",
+    "vitest": "^4.1.1"
+  },
+  "engines": {
+    "bb": ">=0.0",
+    "bbPluginSdk": ">=0.4.3"
+  },
+  "bb": {
+    "name": "Memsearch",
+    "description": "Automatic project memory for agents: daily Markdown truth, auto-capture on thread idle, auto-recall at turn start.",
+    "branding": {
+      "icon": "Brain"
+    },
+    "server": "./server.ts",
+    "skills": [
+      "skills"
+    ]
+  }
+}

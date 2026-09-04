@@ -49,8 +49,7 @@
     "pino-roll": "^4.0.0",
     "semver": "^7.7.0",
     "ws": "^8.19.0",
-    "zod": "^4.3.6",
-    "@bb/memsearch": "workspace:*"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@bb/agent-runtime": "workspace:*",
