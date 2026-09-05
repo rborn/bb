@@ -21,7 +21,7 @@ import {
   PaneContext,
   type PaneContextValue,
 } from "@/views/thread-detail/PaneContext";
-import { buildFuzzyRegex } from "./model-fuzzy-search";
+import { buildFuzzyRegex, fuzzyFilter } from "./model-fuzzy-search";
 import {
   buildModelNavRows,
   ModelReasoningPicker,
@@ -830,5 +830,39 @@ describe("buildModelNavRows", () => {
       { kind: "model", option: primary[0] },
       { kind: "model", option: primary[1] },
     ]);
+  });
+});
+
+describe("buildFuzzyRegex", () => {
+  it("matches subsequences case-insensitively", () => {
+    expect(buildFuzzyRegex("gpt4").test("GPT-4 Turbo")).toBe(true);
+    expect(buildFuzzyRegex("o4m").test("o4-mini")).toBe(true);
+    expect(buildFuzzyRegex("xyz").test("o4-mini")).toBe(false);
+  });
+
+  it("escapes regex metacharacters so they match literally", () => {
+    expect(buildFuzzyRegex("5.2").test("5.2")).toBe(true);
+    expect(buildFuzzyRegex("5.2").test("512")).toBe(false);
+  });
+
+  it("fuzzyFilter ranks exact and word matches higher than scattered matches", () => {
+    const list = [
+      "Claude 3.7 Sonnet (Thinking)",
+      "Auto",
+      "Automated Testing Model",
+    ];
+    const filtered = fuzzyFilter(list, "auto", (s) => s);
+    expect(filtered[0]).toBe("Auto");
+    expect(filtered[1]).toBe("Automated Testing Model");
+  });
+
+  it("fuzzyFilter matches multiple query terms and provider names", () => {
+    const list = [
+      "Qwen3-14B deepinfra deep infra deepinfra/Qwen/Qwen3-14B",
+      "Claude Sonnet 5 anthropic anthropic/claude-sonnet-5",
+    ];
+    expect(fuzzyFilter(list, "deepinfra", (s) => s)).toHaveLength(1);
+    expect(fuzzyFilter(list, "deep infra", (s) => s)).toHaveLength(1);
+    expect(fuzzyFilter(list, "qwen deepinfra", (s) => s)).toHaveLength(1);
   });
 });

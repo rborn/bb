@@ -9,6 +9,7 @@ import {
   hiddenCount,
   isVisible,
   keyOf,
+  migrateLegacyHidden,
   setHidden,
   MAX_MENU_WIDTH_REM,
   MIN_MENU_WIDTH_REM,
@@ -29,6 +30,13 @@ describe("visibility", () => {
     c = setHidden(c, "pi", "old-model", false);
     expect(isVisible(c, "pi", "old-model")).toBe(true);
     expect(clearHidden(setHidden(c, "x", "y", true))).toEqual(defaultConfig());
+  });
+  it("migrates legacy pi provider keys", () => {
+    const legacy = { pi: ["cursor/auto", "deepinfra/phi-4"] };
+    const migrated = migrateLegacyHidden(legacy);
+    expect(migrated.pi).toBeUndefined();
+    expect(migrated.cursor).toEqual(["cursor/auto"]);
+    expect(migrated.deepinfra).toEqual(["deepinfra/phi-4"]);
   });
   it("clamps width", () => {
     expect(clampWidth(24)).toBe(24);

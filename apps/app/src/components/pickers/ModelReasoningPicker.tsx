@@ -122,11 +122,23 @@ function splitModelLabelTag(label: string): ModelLabelParts {
   return { base: match[1], tag: match[2] };
 }
 
+const PROVIDER_SEARCH_ALIASES: Record<string, string> = {
+  deepinfra: "deepinfra deep infra",
+  deepseek: "deepseek deep seek",
+  opencode: "opencode open code",
+  "opencode-go": "opencode-go opencode go open code go",
+  anthropic: "anthropic claude",
+  google: "google gemini gemma",
+  cursor: "cursor",
+};
+
 function modelSearchText(
   option: ModelPickerOption,
   brandPrefix: string | undefined,
 ): string {
-  return `${stripModelBrandPrefix(option.label, brandPrefix)} ${option.routeProviderId ?? ""} ${option.value}`;
+  const providerKey = (option.routeProviderId ?? "").toLowerCase();
+  const aliases = PROVIDER_SEARCH_ALIASES[providerKey] ?? providerKey;
+  return `${stripModelBrandPrefix(option.label, brandPrefix)} ${option.routeProviderId ?? ""} ${aliases} ${option.value}`;
 }
 type ModelNavRow =
   | { kind: "model"; option: ModelPickerOption }

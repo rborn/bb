@@ -7,6 +7,7 @@ import {
   clampWidth,
   clearHidden,
   defaultConfig,
+  migrateLegacyHidden,
   setHidden,
   type LensConfig,
 } from "./visibility.js";
@@ -91,8 +92,9 @@ export function mapCatalogResponse(res: any): CatalogProvider[] {
 async function readConfig(bb: BbPluginApi): Promise<LensConfig> {
   const raw = await bb.storage.kv.get<LensConfig>(CONFIG_KEY);
   if (!raw) return defaultConfig();
+  const hidden = migrateLegacyHidden(raw.hidden ?? {});
   return {
-    hidden: raw.hidden ?? {},
+    hidden,
     menuWidthRem: clampWidth(raw.menuWidthRem ?? 20),
     showProviders: raw.showProviders ?? true,
   };

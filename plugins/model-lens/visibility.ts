@@ -19,11 +19,12 @@ export function keyOf(providerId: string, modelId: string): string {
 }
 
 export function isVisible(config: LensConfig, providerId: string, modelId: string): boolean {
-  const list = config.hidden[providerId];
-  if (!list) return true;
-  if (list.includes(modelId)) return false;
-  const prefix = `${providerId}/`;
-  if (modelId.startsWith(prefix) && list.includes(modelId.slice(prefix.length))) return false;
+  for (const [p, list] of Object.entries(config.hidden)) {
+    if (!Array.isArray(list)) continue;
+    if (list.includes(modelId)) return false;
+    const prefix = `${p}/`;
+    if (modelId.startsWith(prefix) && list.includes(modelId.slice(prefix.length))) return false;
+  }
   return true;
 }
 
@@ -31,13 +32,34 @@ export function hiddenCount(config: LensConfig): number {
   return Object.values(config.hidden).reduce((n, ids) => n + ids.length, 0);
 }
 
+export function migrateLegacyHidden(hidden: HiddenMap): HiddenMap {
+  const next: HiddenMap = { ...hidden };
+  if (Array.isArray(next.pi)) {
+    for (const ref of next.pi) {
+      const slash = ref.indexOf("/");
+      if (slash > 0) {
+        const p = ref.slice(0, slash);
+        next[p] = [...new Set([...(next[p] ?? []), ref])].sort();
+      }
+    }
+    delete next.pi;
+  }
+  return next;
+}
+
 export function setHidden(config: LensConfig, providerId: string, modelId: string, hidden: boolean): LensConfig {
-  const ids = new Set(config.hidden[providerId] ?? []);
-  if (hidden) ids.add(modelId);
-  else ids.delete(modelId);
-  const next: HiddenMap = { ...config.hidden };
-  if (ids.size === 0) delete next[providerId];
-  else next[providerId] = [...ids].sort();
+  const next: HiddenMap = migrateLegacyHidden(config.hidden);
+  if (hidden) {
+    const ids = new Set(next[providerId] ?? []);
+    ids.add(modelId);
+    next[providerId] = [...ids].sort();
+  } else {
+    for (const [p, list] of Object.entries(next)) {
+      const remaining = list.filter((id) => id !== modelId && id !== modelId.replace(`${p}/`, ""));
+      if (remaining.length === 0) delete next[p];
+      else next[p] = remaining;
+    }
+  }
   return { ...config, hidden: next };
 }
 

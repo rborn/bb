@@ -547,15 +547,13 @@ function filterHiddenModels(
 
   const isHidden = (m: AvailableModel): boolean => {
     const routeId = m.routeProviderId || providerId;
-    const listForRoute = hidden[routeId];
-    if (Array.isArray(listForRoute)) {
-      if (listForRoute.includes(m.model)) return true;
-      const prefix = `${routeId}/`;
-      if (m.model.startsWith(prefix) && listForRoute.includes(m.model.slice(prefix.length))) return true;
-    }
-    const listForMain = hidden[providerId];
-    if (Array.isArray(listForMain)) {
-      if (listForMain.includes(m.model)) return true;
+    const fullId = m.model;
+    for (const [pId, list] of Object.entries(hidden)) {
+      if (!Array.isArray(list)) continue;
+      if (list.includes(fullId)) return true;
+      const prefix = `${pId}/`;
+      if (fullId.startsWith(prefix) && list.includes(fullId.slice(prefix.length))) return true;
+      if (routeId === pId && list.includes(fullId)) return true;
     }
     return false;
   };
