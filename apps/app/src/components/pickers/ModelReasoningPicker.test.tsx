@@ -21,6 +21,7 @@ import {
   PaneContext,
   type PaneContextValue,
 } from "@/views/thread-detail/PaneContext";
+import { buildFuzzyRegex } from "./model-fuzzy-search";
 import {
   buildModelNavRows,
   ModelReasoningPicker,

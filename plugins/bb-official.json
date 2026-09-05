@@ -125,5 +125,9 @@
   "browser-automation": {
     "category": "agents-and-providers",
     "screenshots": []
+  },
+  "model-lens": {
+    "category": "agents-and-providers",
+    "screenshots": []
   }
 }

@@ -170,6 +170,11 @@ export const OFFICIAL_PLUGINS = [
     defaultEnabled: true,
   },
   {
+    name: "model-lens",
+    pluginId: "model-lens",
+    defaultEnabled: true,
+  },
+  {
     name: "tasks",
     pluginId: "tasks",
     defaultEnabled: true,

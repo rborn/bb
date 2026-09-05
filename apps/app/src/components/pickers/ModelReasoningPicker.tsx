@@ -109,7 +109,10 @@ const REASONING_CYCLE_COMMANDS = [
 ] as const;
 
 const MODEL_SEARCH_MIN_OPTIONS = 5;
-const MODEL_PICKER_MENU_WIDTH_CLASS_NAME = "w-max min-w-52 max-w-80";
+const MODEL_PICKER_MENU_WIDTH_CLASS_NAME =
+  "w-[var(--model-picker-menu-width,20rem)] min-w-52 max-w-[calc(100vw-1rem)]";
+
+import { fuzzyFilter } from "./model-fuzzy-search.js";
 
 function splitModelLabelTag(label: string): ModelLabelParts {
   const match = label.match(/^(.*\S)\s*\(([^()]+)\)$/u);
@@ -119,6 +122,12 @@ function splitModelLabelTag(label: string): ModelLabelParts {
   return { base: match[1], tag: match[2] };
 }
 
+function modelSearchText(
+  option: ModelPickerOption,
+  brandPrefix: string | undefined,
+): string {
+  return `${stripModelBrandPrefix(option.label, brandPrefix)} ${option.routeProviderId ?? ""} ${option.value}`;
+}
 type ModelNavRow =
   | { kind: "model"; option: ModelPickerOption }
   | { kind: "more-toggle" };
@@ -867,6 +876,7 @@ export function ModelReasoningPicker({
         mobileTitle="Model"
         onMobileContentAnimationEnd={handleMobileContentAnimationEnd}
         autoFocusRef={showSearchInput ? searchInputRef : undefined}
+        style={{ width: "var(--model-picker-menu-width, 20rem)" }}
         className={cn(
           "flex flex-col p-0",
           MODEL_PICKER_MENU_WIDTH_CLASS_NAME,
@@ -1283,6 +1293,7 @@ function MoreModelsSubmenu({
         side="right"
         align="start"
         sideOffset={6}
+        style={{ width: "var(--model-picker-menu-width, 20rem)" }}
         className={cn(
           "flex flex-col p-1 data-[state=closed]:animate-none",
           MODEL_PICKER_MENU_WIDTH_CLASS_NAME,

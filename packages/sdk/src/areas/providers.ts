@@ -15,6 +15,7 @@ export type ProviderListArgs = ProviderHostRoutingArgs & {
   signal?: AbortSignal;
 };
 export type ProviderModelsArgs = ProviderHostRoutingArgs & {
+  all?: "true" | "false";
   providerId?: string;
   signal?: AbortSignal;
 };
@@ -49,6 +50,7 @@ export function createProvidersArea(args: CreateSdkAreaArgs): ProvidersArea {
         transport.api.v1.system["execution-options"].$get(
           {
             query: {
+              all: input.all,
               environmentId: input.environmentId,
               hostId: input.hostId,
               providerId: input.providerId,

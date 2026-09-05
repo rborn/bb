@@ -212,6 +212,7 @@ const OPTIONAL_SERVER_FIELD_GROUPS: readonly OptionalServerFieldGroup[] = [
     reason:
       "System provider lookups may target a host indirectly or directly, omit provider id to use the host default, and omit capability to return the full roster.",
     fields: [
+      "systemExecutionOptionsQuerySchema.all",
       "systemExecutionOptionsQuerySchema.environmentId",
       "systemExecutionOptionsQuerySchema.hostId",
       "systemExecutionOptionsQuerySchema.providerId",

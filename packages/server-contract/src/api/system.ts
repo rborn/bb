@@ -64,6 +64,7 @@ export const systemExecutionOptionsQuerySchema = z
   .object({
     ...systemProviderHostQueryFields,
     providerId: z.string().min(1),
+    all: z.enum(["true", "false"]).optional(),
   })
   .partial()
   .superRefine(rejectMultipleWorkspaceSelectors);

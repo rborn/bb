@@ -1,4 +1,4 @@
-import { updateHost } from "@bb/db";
+import { setPluginKvValue, updateHost } from "@bb/db";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import type { HostDaemonOnlineRpcRequestMessage } from "@bb/host-daemon-contract";
@@ -255,6 +255,87 @@ describe("GET /api/v1/system/providers", () => {
           installation: expect.any(Boolean),
         });
       }
+    });
+  });
+});
+
+describe("model-lens execution options filtering", () => {
+  it("filters hidden models unless all=true is passed", async () => {
+    await withTestHarness({}, async (harness) => {
+      const primary = seedHostSession(harness.deps, {
+        id: "host-model-lens-primary",
+      });
+      seedPrimaryHost(harness.deps, primary.host.id);
+      registerHostRpcResponder(harness, {
+        hostId: primary.host.id,
+        sessionId: primary.session.id,
+        handle: (request) => {
+          if (request.command.type === "provider.list_models") {
+            return {
+              ok: true as const,
+              result: {
+                models: [
+                  availableModelFixture({ model: "model-keep" }),
+                  availableModelFixture({ model: "model-hide" }),
+                ],
+                selectedOnlyModels: [],
+              },
+            };
+          }
+          if (request.command.type === "provider.health") {
+            return {
+              ok: true as const,
+              result: {
+                supported: true as const,
+                health: {
+                  status: "ready" as const,
+                  statusMessage: null,
+                  accountEmail: null,
+                  planLabel: null,
+                  installedVersion: null,
+                  minimumSupportedVersion: null,
+                  canInstall: false,
+                  canUpdate: false,
+                  loginCommand: null,
+                },
+              },
+            };
+          }
+          throw new Error(`Unexpected RPC command ${request.command.type}`);
+        },
+      });
+
+      setPluginKvValue(
+        harness.deps.db,
+        "model-lens",
+        "model-lens:config:v1",
+        JSON.stringify({
+          hidden: { codex: ["model-hide"] },
+          menuWidthRem: 20,
+          showProviders: true,
+        }),
+      );
+
+      const filtered = systemExecutionOptionsResponseSchema.parse(
+        await readJson(
+          await harness.app.request(
+            "/api/v1/system/execution-options?providerId=codex",
+          ),
+        ),
+      );
+      expect(filtered.models.map((m) => m.model)).toEqual(["model-keep"]);
+
+      const unfiltered = systemExecutionOptionsResponseSchema.parse(
+        await readJson(
+          await harness.app.request(
+            "/api/v1/system/execution-options?providerId=codex&all=true",
+          ),
+        ),
+      );
+      expect(unfiltered.models.map((m) => m.model)).toEqual([
+        "model-keep",
+        "model-hide",
+      ]);
     });
   });
 });

@@ -1,0 +1,52 @@
+{
+  "name": "bb-plugin-model-lens",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Focus the model picker: hide models you never use, widen the dropdown. Collapse (never remove) with one-click restore.",
+  "license": "MIT",
+  "homepage": "https://github.com/get-bb/bb#readme",
+  "bugs": {
+    "url": "https://github.com/get-bb/bb/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/get-bb/bb.git",
+    "directory": "plugins/model-lens"
+  },
+  "files": [
+    "dist",
+    "server.ts",
+    "app.tsx",
+    "visibility.ts",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@bb/shared-ui": "workspace:*",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@get-bb/plugin-sdk": "workspace:*",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "vitest": "^4.1.1"
+  },
+  "engines": {
+    "bb": ">=0.0",
+    "bbPluginSdk": ">=0.4.3"
+  },
+  "bb": {
+    "name": "Model Lens",
+    "description": "Focus the model picker: hide models you never use, widen the dropdown. Hidden models collapse into one row, never vanish.",
+    "branding": {
+      "icon": "Eye"
+    },
+    "server": "./server.ts",
+    "app": "./app.tsx"
+  }
+}

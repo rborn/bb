@@ -1304,6 +1304,9 @@ export function createPluginRuntime(context: PluginRuntimeContext) {
       getLoopbackBaseUrl: () => boundLoopbackBaseUrl,
       publishSignal: (channel, payload) => {
         deps.hub.notifyPluginSignal(row.id, channel, payload);
+        if (row.id === "model-lens" && channel === "model-lens:changed") {
+          deps.hub.notifySystem(["provider-registrations-changed"]);
+        }
       },
       settingsChanged: () => {
         deps.onSettingsChanged?.(row.id);
