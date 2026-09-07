@@ -2,6 +2,7 @@
 
 - [ ] distro: universal build Intel→Silicon — `pnpm --filter @bb/desktop run desktop:build:both` (unsigned, dual dmg). Added scripts `desktop:build:both` / `desktop:build:universal`. Verify on arm64 target.
 - [ ] composer modes: real tool gating for pi — Ask=read-only, Plan=plans/**+AGENTS.md only (enforce via bb-pi-extension activeTools filter), Agent=full. Reverted — needs proper testing, currently prompt-only Ask still edits.
+- [ ] composer modes: permissionMode UI hidden — prompt-only now; re-enable readOnly/full gating + bb-pi-extension activeTools filter (Ask read-only, Plan plans/**+AGENTS.md) when proper testing lands.
 
 - [ ] sidebar: Projects isolation — hard cwd/file sandbox originally considered (block `read`/`bash` outside `project.source.path`). **May not be needed — decided to keep filesystem open by design** (memory/session isolated, files remain loadable from anywhere). Revisit only if real leak/abuse.
 - [ ] projects: git init handling for new projects (local folder `+ Add project` should detect missing git and offer `git init` / `git clone` flow). Deferred per user.
