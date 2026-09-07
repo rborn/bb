@@ -189,7 +189,6 @@ function ComposerModePicker() {
           .split(/[\n\r]+/)[0]
           ?.replace(/(None|Low|Medium|High|Extra High|Max|xhigh|ultracode)$/i, "")
           .trim() || "Current Model";
-        const searchPart = (pref.model.split("/").pop() || pref.model).toLowerCase();
         const targetModelLabel = pref.model
           .split("/")
           .pop()
@@ -197,8 +196,24 @@ function ComposerModePicker() {
           .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
           .join(" ") || pref.model;
 
+        const cleanPref = pref.model.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const prefSlug = (pref.model.split("/").pop() || pref.model)
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, "");
+        const cleanLabel = currentModelLabel.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const storedModel = (
+          localStorage.getItem("bb.promptbox.model-pi-1") ||
+          localStorage.getItem("bb.promptbox.model") ||
+          ""
+        ).replace(/^"|"$/g, "");
+        const cleanStored = storedModel.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+        const isSameModel =
+          (cleanLabel.length > 0 && (cleanLabel.includes(prefSlug) || cleanPref.includes(cleanLabel))) ||
+          (cleanStored.length > 0 && (cleanStored === cleanPref || cleanStored.endsWith(prefSlug)));
+
         // If the model is different, prompt for cache-invalidation confirmation
-        if (currentModelLabel && !currentModelLabel.toLowerCase().includes(searchPart)) {
+        if (!isSameModel) {
           setOpen(false);
           setPendingSwitch({
             modeId: id,
