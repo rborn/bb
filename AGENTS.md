@@ -21,8 +21,17 @@
 - Return raw host-local data from the daemon; assemble product behavior on the server. Move responsibility across this boundary only when the change requires it.
 - Increment `HOST_DAEMON_PROTOCOL_VERSION` for changes to server/daemon wire fields, including their types, requiredness, defaults, or meaning, unless compatibility with the previously shipped daemon is deliberately preserved and tested. This covers session payloads, WebSocket messages, and host RPC commands/results. Shared TypeScript builds do not verify compatibility with enrolled machines; the version bump triggers their update.
 
-## CLI And Plugin API
+## CLI, Plugins, And Repository Skills
 
+- When creating or modifying plugins, read `apps/server/src/services/skills/builtin-skills/bb-plugin-authoring/SKILL.md`.
+- When inspecting BB state or testing via CLI, read `apps/server/src/services/skills/builtin-skills/bb-cli/SKILL.md`.
+- To verify user journeys against the dev app, read `.bb/skills/verify-bb/SKILL.md`.
+- To clean up AI-generated code slop before committing, read `.bb/skills/deslop/SKILL.md`.
+- Never scrape or mutate React DOM nodes in plugins (`MutationObserver`, `appendChild`, `insertBefore` on app elements). The app's `foreignDomMutationGuard` detects and blocks React host node tampering to prevent fiber corruption.
+- For UI customization in plugins, use sanctioned plugin slots, custom CSS properties, or data-layer interception (`window.fetch`), never DOM surgery.
+- Model catalogs (`/api/v1/system/execution-options`) return a flat top-level `models` array with `routeProviderId`, not nested under `groups[].models`.
+- Build official plugins with `node --conditions=source --import tsx scripts/build-official-plugins.mjs <plugin-name>`.
+- Always verify plugin and UI behavior against the running dev instance (`http://127.0.0.1:14462` / `22462` via `agent-browser` or DevTools/curl), never by isolated unit-test mocking alone.
 - Every end-user feature must also be usable through the SDK and `bb` CLI; ship and document these surfaces with the UI.
 - For changes to CLI commands/flags or user-facing configuration (env vars, `.bb/` workspace files, settings), update the discoverable surfaces listed in [docs/cli-guide-and-skill.md](docs/cli-guide-and-skill.md).
 - New public plugin API members (`@get-bb/plugin-sdk/app` exports, `app.slots.*` methods, or `BbPluginApi` properties) require an `experimental_` prefix and an entry in [docs/api_to_audit.md](docs/api_to_audit.md) describing behavior and stabilization criteria. Stabilization includes the audit, a project-wide rename, and removal of the entry.
