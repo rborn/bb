@@ -103,14 +103,23 @@ function ComposerModePicker() {
   const builtins = filtered.filter((m) => m.isBuiltin);
   const customs = filtered.filter((m) => !m.isBuiltin);
 
-  const selectMode = useCallback(
-    async (id: string) => {
+  const [pendingSwitch, setPendingSwitch] = useState<{
+    modeId: string;
+    targetModel: string;
+    targetModelLabel: string;
+    currentModelLabel: string;
+  } | null>(null);
+
+  const executeSwitch = useCallback(
+    async (id: string, switchModel: boolean) => {
+      setPendingSwitch(null);
       saveLocalActive(id);
       try {
         const tid = (view as any)?.scope?.threadId as string | undefined;
         const m = data?.modes.find((x) => x.id === id) as any;
         const pref = m?.preferredModel;
-        if (pref?.model) {
+
+        if (switchModel && pref?.model) {
           const modelString =
             pref.routeProviderId && !pref.model.includes("/")
               ? `${pref.routeProviderId}/${pref.model}`
@@ -178,6 +187,55 @@ function ComposerModePicker() {
     [rpc, load, data, view],
   );
 
+  const selectMode = useCallback(
+    (id: string) => {
+      const m = data?.modes.find((x) => x.id === id) as any;
+      const pref = m?.preferredModel;
+
+      if (pref?.model) {
+        const root =
+          btnRef.current?.closest("form") ||
+          btnRef.current?.closest("[data-app-composer]") ||
+          document;
+        const btns = Array.from(root.querySelectorAll("button"));
+        const modelBtn = btns.find(
+          (b) =>
+            b !== btnRef.current &&
+            b.textContent &&
+            (b.textContent.includes("Low") ||
+              b.textContent.includes("Medium") ||
+              b.textContent.includes("High") ||
+              b.textContent.includes("None") ||
+              b.textContent.includes("Max") ||
+              b.textContent.includes("Extra High")),
+        );
+
+        const currentModelLabel = modelBtn
+          ? modelBtn.textContent.split("\n")[0].trim()
+          : localStorage.getItem("bb.promptbox.model") || "Current Model";
+        const searchPart = (pref.model.split("/").pop() || pref.model).toLowerCase();
+        const targetModelLabel =
+          pref.model.split("/").pop()?.replace(/-/g, " ") || pref.model;
+
+        // If the model is different, prompt for cache-invalidation confirmation
+        if (currentModelLabel && !currentModelLabel.toLowerCase().includes(searchPart)) {
+          setOpen(false);
+          setPendingSwitch({
+            modeId: id,
+            targetModel: pref.model,
+            targetModelLabel,
+            currentModelLabel,
+          });
+          return;
+        }
+      }
+
+      // No model change or already matching: switch immediately
+      void executeSwitch(id, true);
+    },
+    [data, executeSwitch],
+  );
+
   if (!data || !activeMode) {
     return (
       <button type="button" className="rounded-full border border-border px-2 py-1 text-xs text-muted-foreground" onClick={() => void load()}>
@@ -243,6 +301,49 @@ function ComposerModePicker() {
 
           </div>
         </>
+      ), document.body) : null}
+
+      {pendingSwitch ? createPortal((
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs" onClick={() => setPendingSwitch(null)}>
+          <div
+            className="w-full max-w-sm rounded-xl border border-border bg-popover p-5 shadow-2xl animate-in fade-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <span className="text-amber-500 text-base">⚠️</span>
+              <span>Switch Model to {pendingSwitch.targetModelLabel}?</span>
+            </div>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              This persona recommends <strong className="text-foreground">{pendingSwitch.targetModelLabel}</strong>, but this thread is currently using <strong className="text-foreground">{pendingSwitch.currentModelLabel}</strong>.
+            </p>
+            <div className="mt-3 rounded-lg border border-border/60 bg-muted/40 p-2.5 text-[11px] text-muted-foreground leading-normal">
+              ⚡ <strong>Prompt cache reset</strong>: Switching models invalidates KV prompt caching. The entire previous conversation will be reprocessed at standard input token cost.
+            </div>
+            <div className="mt-4 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => void executeSwitch(pendingSwitch.modeId, true)}
+                className="w-full rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:opacity-90 transition-opacity"
+              >
+                Switch to {pendingSwitch.targetModelLabel} &amp; Reset Cache
+              </button>
+              <button
+                type="button"
+                onClick={() => void executeSwitch(pendingSwitch.modeId, false)}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs font-medium text-foreground hover:bg-muted transition-colors"
+              >
+                Keep {pendingSwitch.currentModelLabel} (Preserve Cache)
+              </button>
+              <button
+                type="button"
+                onClick={() => setPendingSwitch(null)}
+                className="w-full py-1 text-center text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       ), document.body) : null}
     </div>
   );
