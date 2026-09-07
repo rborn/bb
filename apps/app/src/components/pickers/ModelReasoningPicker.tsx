@@ -555,6 +555,35 @@ export function ModelReasoningPicker({
     [onModelChange, previewSelectionBlocked],
   );
 
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail;
+      const targetModel = detail?.model;
+      if (typeof targetModel === "string" && targetModel) {
+        const normalizedTarget = targetModel.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const targetSlug = (targetModel.split("/").pop() || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+        const match =
+          modelOptions.find((m) => {
+            const val = m.value.toLowerCase().replace(/[^a-z0-9]/g, "");
+            const lbl = m.label.toLowerCase().replace(/[^a-z0-9]/g, "");
+            return val.includes(normalizedTarget) || (targetSlug && (val.includes(targetSlug) || lbl.includes(targetSlug)));
+          }) ||
+          moreModelOptions.find((m) => {
+            const val = m.value.toLowerCase().replace(/[^a-z0-9]/g, "");
+            const lbl = m.label.toLowerCase().replace(/[^a-z0-9]/g, "");
+            return val.includes(normalizedTarget) || (targetSlug && (val.includes(targetSlug) || lbl.includes(targetSlug)));
+          });
+        if (match) {
+          handleModelSelect(match.value);
+        } else {
+          handleModelSelect(targetModel);
+        }
+      }
+    };
+    window.addEventListener("bb:select-model", handler);
+    return () => window.removeEventListener("bb:select-model", handler);
+  }, [handleModelSelect, modelOptions, moreModelOptions]);
+
   const handleProviderSelect = useCallback(
     (providerId: string) => {
       onSelectedProviderChange?.(providerId);

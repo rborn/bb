@@ -144,47 +144,11 @@ function ComposerModePicker() {
                 storageArea: localStorage,
               }),
             );
-          } catch {}
-
-          try {
-            const root =
-              btnRef.current?.closest("form") ||
-              btnRef.current?.closest("[data-app-composer]") ||
-              document;
-            const btns = Array.from(root.querySelectorAll("button"));
-            const modelBtn = btns.find(
-              (b) =>
-                b !== btnRef.current &&
-                b.textContent &&
-                (b.textContent.includes("Low") ||
-                  b.textContent.includes("Medium") ||
-                  b.textContent.includes("High") ||
-                  b.textContent.includes("None") ||
-                  b.textContent.includes("Max") ||
-                  b.textContent.includes("Extra High")),
+            window.dispatchEvent(
+              new CustomEvent("bb:select-model", {
+                detail: { model: modelString },
+              }),
             );
-            if (modelBtn && !modelBtn.textContent.toLowerCase().includes(searchPart)) {
-              modelBtn.click();
-              setTimeout(() => {
-                const options = Array.from(document.querySelectorAll('[role="option"]'));
-                const rawModel = pref.model.toLowerCase().replace(/[^a-z0-9]/g, "");
-                const modelSlug = (pref.model.split("/").pop() || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-                const target = options.find((o) => {
-                  const optText = (o.textContent || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-                  return optText.includes(rawModel) || (modelSlug && optText.includes(modelSlug));
-                });
-                if (target) {
-                  (target as HTMLElement).click();
-                  setTimeout(() => {
-                    if (modelBtn.getAttribute("aria-expanded") === "true") {
-                      modelBtn.click();
-                    }
-                  }, 50);
-                } else {
-                  modelBtn.click();
-                }
-              }, 120);
-            }
           } catch {}
         }
         await rpc.call("setActiveMode", tid ? { id, threadId: tid } : { id });
