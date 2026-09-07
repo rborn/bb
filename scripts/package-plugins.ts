@@ -1,5 +1,6 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 
@@ -78,9 +79,18 @@ function main(): void {
   }
 
   console.log(`\nPackaging plugins into ${outDir}...`);
+  const manifestItems = [];
+
   for (const plugin of config.plugins) {
     const pluginDir = join(repoRoot, "plugins", plugin);
     const zipPath = join(outDir, `${plugin}.zip`);
+    const pkgPath = join(pluginDir, "package.json");
+    let pkgMeta: Record<string, unknown> = {};
+    if (existsSync(pkgPath)) {
+      try {
+        pkgMeta = JSON.parse(readFileSync(pkgPath, "utf-8")) as Record<string, unknown>;
+      } catch {}
+    }
 
     execFileSync("rm", ["-f", zipPath]);
     execFileSync(
@@ -89,11 +99,36 @@ function main(): void {
       { cwd: pluginDir },
     );
 
+    const zipBuffer = readFileSync(zipPath);
     const size = statSync(zipPath).size;
-    console.log(`  ✓ ${plugin}.zip (${formatBytes(size)}) -> ${zipPath}`);
+    const sha256 = createHash("sha256").update(zipBuffer).digest("hex");
+
+    const bbMeta = (pkgMeta.bb as Record<string, unknown>) || {};
+    const branding = (bbMeta.branding as Record<string, unknown>) || {};
+
+    manifestItems.push({
+      id: plugin,
+      name: String(bbMeta.name || pkgMeta.name || plugin),
+      version: String(pkgMeta.version || "0.1.0"),
+      description: String(bbMeta.description || pkgMeta.description || ""),
+      icon: String(branding.icon || "Sparkles"),
+      file: `${plugin}.zip`,
+      size,
+      sha256,
+    });
+
+    console.log(`  ✓ ${plugin}.zip (${formatBytes(size)}, sha256: ${sha256.slice(0, 8)}...) -> ${zipPath}`);
   }
 
-  console.log("\nDone! Plugins are packaged and ready to distribute.");
+  const manifestPath = join(outDir, "manifest.json");
+  const manifestData = {
+    generatedAt: new Date().toISOString(),
+    plugins: manifestItems,
+  };
+  writeFileSync(manifestPath, JSON.stringify(manifestData, null, 2) + "\n", "utf-8");
+  console.log(`  ✓ manifest.json -> ${manifestPath}`);
+
+  console.log("\nDone! Plugins are packaged, cataloged, and ready to distribute.");
 }
 
 main();
