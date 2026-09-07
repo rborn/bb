@@ -58,8 +58,27 @@ function ComposerModePicker() {
   const [data, setData] = useState<ModesResult | null>(null);
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
-  const [pos, setPos] = useState<{top:number;left:number}>({top:0,left:0});
-  useEffect(()=>{ if(open && btnRef.current){ const r=btnRef.current.getBoundingClientRect(); setPos({top:r.bottom+8,left:r.left}); } },[open]);
+  const [pos, setPos] = useState<{top:number;left:number;up?:boolean}>({top:0,left:0});
+  const pickerRef = useRef<HTMLDivElement>(null);
+  useEffect(()=>{ if(open && btnRef.current){
+    const r=btnRef.current.getBoundingClientRect();
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const estH = Math.min(320, Math.max(200, (pickerRef.current?.offsetHeight || 320)));
+    const spaceBelow = vh - r.bottom - 8;
+    const up = spaceBelow < estH && r.top > spaceBelow;
+    const top = up ? Math.max(8, r.top - estH - 8) : r.bottom + 8;
+    const left = Math.min(Math.max(8, r.left), vw - 288 - 8);
+    setPos({top,left,up});
+    // re-measure after render for accurate height
+    requestAnimationFrame(()=>{
+      if(pickerRef.current){
+        const h = pickerRef.current.offsetHeight;
+        const up2 = (vh - r.bottom - 8) < h && r.top > (vh - r.bottom - 8);
+        const top2 = up2 ? Math.max(8, r.top - h - 8) : r.bottom + 8;
+        if(top2 !== top) setPos({top:top2,left,up:up2});
+      }
+    });
+  } },[open]);
 
   const load = useCallback(async () => {
     try {
@@ -88,12 +107,75 @@ function ComposerModePicker() {
     async (id: string) => {
       saveLocalActive(id);
       try {
-        await rpc.call("setActiveMode", { id });
+        const tid = (view as any)?.scope?.threadId as string | undefined;
+        const m = data?.modes.find((x) => x.id === id) as any;
+        const pref = m?.preferredModel;
+        if (pref?.model) {
+          const modelString =
+            pref.routeProviderId && !pref.model.includes("/")
+              ? `${pref.routeProviderId}/${pref.model}`
+              : pref.model;
+          const searchPart = (pref.model.split("/").pop() || pref.model).toLowerCase();
+
+          try {
+            localStorage.setItem("bb.promptbox.provider", "pi");
+            localStorage.setItem("bb.promptbox.model-pi-1", modelString);
+            localStorage.setItem("bb.promptbox.model", modelString);
+            window.dispatchEvent(
+              new StorageEvent("storage", {
+                key: "bb.promptbox.model-pi-1",
+                newValue: modelString,
+                storageArea: localStorage,
+              }),
+            );
+            window.dispatchEvent(
+              new StorageEvent("storage", {
+                key: "bb.promptbox.provider",
+                newValue: "pi",
+                storageArea: localStorage,
+              }),
+            );
+          } catch {}
+
+          try {
+            const root =
+              btnRef.current?.closest("form") ||
+              btnRef.current?.closest("[data-app-composer]") ||
+              document;
+            const btns = Array.from(root.querySelectorAll("button"));
+            const modelBtn = btns.find(
+              (b) =>
+                b !== btnRef.current &&
+                b.textContent &&
+                (b.textContent.includes("Low") ||
+                  b.textContent.includes("Medium") ||
+                  b.textContent.includes("High") ||
+                  b.textContent.includes("None") ||
+                  b.textContent.includes("Max") ||
+                  b.textContent.includes("Extra High")),
+            );
+            if (modelBtn && !modelBtn.textContent.toLowerCase().includes(searchPart)) {
+              modelBtn.click();
+              setTimeout(() => {
+                const options = Array.from(document.querySelectorAll('[role="option"]'));
+                const target = options.find((o) =>
+                  (o.textContent || "").toLowerCase().includes(searchPart),
+                );
+                if (target) {
+                  (target as HTMLElement).click();
+                } else {
+                  modelBtn.click();
+                }
+              }, 40);
+            }
+          } catch {}
+        }
+        await rpc.call("setActiveMode", tid ? { id, threadId: tid } : { id });
       } catch {}
       setOpen(false);
       void load();
     },
-    [rpc, load],
+    [rpc, load, data, view],
   );
 
   if (!data || !activeMode) {
@@ -115,12 +197,11 @@ function ComposerModePicker() {
       >
         <span>{activeMode.icon}</span>
         <span className="font-medium">{activeMode.name}</span>
-        {activeMode.permissionMode === "readOnly" ? <span className="ml-1 rounded bg-emerald-100 px-1 text-[10px] text-emerald-700">read-only</span> : null}
       </button>
       {open ? createPortal((
         <>
           <div className="fixed inset-0 z-40" onClick={()=>setOpen(false)} />
-          <div style={{top:pos.top,left:pos.left}} className="fixed z-50 w-72 rounded-lg border border-border bg-popover p-2 shadow-lg">
+          <div ref={pickerRef} style={{top:pos.top,left:pos.left}} className="fixed z-50 w-72 rounded-lg border border-border bg-popover p-2 shadow-lg">
           <div className="max-h-72 overflow-auto text-xs">
             {builtins.length ? <div className="px-1 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Built-in</div> : null}
             {builtins.map((m) => (
@@ -135,7 +216,6 @@ function ComposerModePicker() {
                   <span className="font-medium">{m.name}</span>
                   <span className="ml-1 text-muted-foreground">— {m.description}</span>
                 </span>
-                {m.permissionMode === "readOnly" ? <span className="text-[10px] text-emerald-600">readOnly</span> : null}
               </button>
             ))}
             {customs.length ? <div className="mt-2 px-1 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Custom Personas</div> : null}
@@ -160,9 +240,7 @@ function ComposerModePicker() {
               Configure personas in Settings →
             </a>
           </div>
-          {activeMode.permissionMode === "readOnly" && !view.draft.isEmpty ? (
-            <div className="mt-2 rounded bg-amber-50 px-2 py-1 text-[11px] text-amber-800">Read-only mode active — file edits will be blocked by instructions.</div>
-          ) : null}
+
           </div>
         </>
       ), document.body) : null}
@@ -194,6 +272,19 @@ function useAvailableSkills(): string[] {
     return () => { cancelled = true; };
   }, []);
   return skills;
+}
+function useAvailableModels(): { models: { model: string; label: string; provider: string; routeProviderId?: string }[]; loading: boolean } {
+  const [models, setModels] = useState<{ model: string; label: string; provider: string; routeProviderId?: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(()=>{ let c=false; (async()=>{ try{
+    const r = await fetch("/api/v1/system/execution-options", { credentials: "same-origin" });
+    if(!r.ok) return;
+    const j = await r.json();
+    const list: any[] = j.models ?? [];
+    const mapped = list.map((m:any)=>({ model: m.model, label: m.displayName || m.model, provider: m.id?.split?.("/")?.[0] ?? m.routeProviderId ?? "", routeProviderId: m.routeProviderId }));
+    if(!c) setModels(mapped);
+  }catch{} finally{ if(!c) setLoading(false); } })(); return ()=>{c=true}; },[]);
+  return { models, loading };
 }
 function SkillsPillsInput({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
   const available = useAvailableSkills();
@@ -236,7 +327,9 @@ function SettingsSection() {
     promptPrefix: "",
     permissionMode: "full",
     skills: [],
-  });
+    preferredModel: null,
+  } as any);
+  const { models: availableModels, loading: modelsLoading } = useAvailableModels();
 
   const load = useCallback(async () => {
     try {
@@ -269,10 +362,11 @@ function SettingsSection() {
         promptPrefix: form.promptPrefix ?? "",
         permissionMode: (form.permissionMode as "full" | "readOnly") ?? "full",
         skills: form.skills ?? [],
+        preferredModel: (form as any).preferredModel ?? null,
         isEnabled: true,
-      });
+      } as any);
       setShowNew(false);
-      setForm({ id: "", name: "", icon: "🎨", color: "violet", description: "", promptPrefix: "", permissionMode: "full", skills: [] });
+      setForm({ id: "", name: "", icon: "🎨", color: "violet", description: "", promptPrefix: "", permissionMode: "full", skills: [], preferredModel: null } as any);
       void load();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -302,7 +396,8 @@ function SettingsSection() {
       promptPrefix: `You are ${aiPrompt}. Follow best practices, be concise, and produce high-quality output for this persona.`,
       permissionMode: "full",
       skills: [],
-    });
+      preferredModel: null,
+    } as any);
     setShowNew(true);
     setGenerating(false);
   };
@@ -344,10 +439,26 @@ function SettingsSection() {
           </div>
           <label className="block text-xs">Description<input value={form.description ?? ""} onChange={(e) => setForm({ ...form, description: e.target.value })} maxLength={200} className="mt-1 w-full rounded border border-input px-2 py-1.5 text-sm" /></label>
           <label className="block text-xs">System prompt <span className={`ml-1 text-[11px] ${(form.promptPrefix?.length ?? 0) > 4096 ? "text-destructive font-medium" : "text-muted-foreground"}`}>{form.promptPrefix?.length ?? 0}/4096</span><textarea value={form.promptPrefix ?? ""} onChange={(e) => setForm({ ...form, promptPrefix: e.target.value.slice(0, 4096) })} maxLength={4096} rows={4} className="mt-1 w-full rounded border border-input px-2 py-1.5 text-sm" /></label>
-          <label className="block text-xs">Permission
-            <select value={form.permissionMode ?? "full"} onChange={(e) => setForm({ ...form, permissionMode: e.target.value as "full"|"readOnly" })} className="mt-1 w-full rounded border border-input px-2 py-1.5 text-sm">
-              <option value="full">Full Access</option>
-              <option value="readOnly">Read-Only</option>
+          <label className="block text-xs">Preferred model <span className="font-normal text-muted-foreground">— same list thread sees</span>
+            <select
+              value={(form as any).preferredModel ? `${(form as any).preferredModel.routeProviderId ?? ""}:${(form as any).preferredModel.model}` : ""}
+              onChange={(e)=>{
+                const v=e.target.value;
+                if(!v) setForm({...form, preferredModel: null} as any);
+                else {
+                  const idx=v.lastIndexOf(":");
+                  const rp=v.slice(0,idx) || undefined;
+                  const m=v.slice(idx+1);
+                  setForm({...form, preferredModel:{ model:m, ...(rp?{routeProviderId:rp}:{}) } } as any);
+                }
+              }}
+              className="mt-1 w-full rounded border border-input bg-background px-2 py-1.5 text-sm"
+            >
+              <option value="">No preference — use thread default</option>
+              {modelsLoading ? <option disabled>Loading models…</option> : null}
+              {availableModels.map(mm=>(
+                <option key={`${mm.routeProviderId ?? ""}:${mm.model}`} value={`${mm.routeProviderId ?? ""}:${mm.model}`}>{mm.label} {mm.routeProviderId ? `(${mm.routeProviderId})` : ""} — {mm.model}</option>
+              ))}
             </select>
           </label>
           <label className="block text-xs">Skills (installed PI only)
@@ -369,7 +480,7 @@ function SettingsSection() {
             {data.modes.map((m) => (
               <tr key={m.id} className={data.activeModeId === m.id ? "bg-muted/30" : ""}>
                 <td className="px-3 py-2">
-                  <div className="flex items-center gap-2"><ModePill mode={m} /><span className={`ml-1 text-[10px] ${m.isBuiltin ? "text-muted-foreground" : "text-violet-600"}`}>{m.isBuiltin ? "builtin" : "custom"}</span>{m.permissionMode === "readOnly" ? <span className="text-[10px] text-emerald-600">readOnly</span> : null}{data.activeModeId === m.id ? <span className="rounded bg-primary px-1.5 py-0.5 text-[10px] text-primary-foreground">active</span> : null}</div>
+                  <div className="flex items-center gap-2"><ModePill mode={m} /><span className={`ml-1 text-[10px] ${m.isBuiltin ? "text-muted-foreground" : "text-violet-600"}`}>{m.isBuiltin ? "builtin" : "custom"}</span>{data.activeModeId === m.id ? <span className="rounded bg-primary px-1.5 py-0.5 text-[10px] text-primary-foreground">active</span> : null}</div>
                   <div className="mt-1 text-xs text-muted-foreground line-clamp-2">{m.description}</div>
                 </td>
                 <td className="px-3 py-2">

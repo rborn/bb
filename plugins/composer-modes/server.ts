@@ -31,7 +31,7 @@ export const composerModesRpcContract = defineRpcContract({
     output: z.object({ mode: composerModeSchema }),
   },
   setActiveMode: {
-    input: z.object({ id: z.string() }),
+    input: z.object({ id: z.string(), threadId: z.string().optional() }),
     output: z.object({ activeModeId: z.string() }),
   },
 });
@@ -140,13 +140,24 @@ export default async function plugin(bb: BbPluginApi) {
       bb.realtime.publish(REALTIME_CHANNEL, { id: input.id });
       return { mode };
     },
-    async setActiveMode(input: { id: string }) {
+    async setActiveMode(input: { id: string; threadId?: string }) {
       const cfg = await getConfig();
       if (!cfg.modes.some((m: ComposerMode) => m.id === input.id)) throw new Error(`mode "${input.id}" not found`);
       cfg.activeModeId = input.id;
       await saveConfig(bb.storage.kv, cfg);
       cached = cfg;
       bb.realtime.publish(REALTIME_CHANNEL, { id: input.id });
+      const mode = cfg.modes.find((m) => m.id === input.id);
+      if (input.threadId && mode?.preferredModel?.model) {
+        try {
+          const modelString =
+            mode.preferredModel.routeProviderId && !mode.preferredModel.model.includes("/")
+              ? `${mode.preferredModel.routeProviderId}/${mode.preferredModel.model}`
+              : mode.preferredModel.model;
+          await bb.sdk.threads.update({ threadId: input.threadId, model: modelString });
+          await bb.realtime.publish("environment-changed", { id: input.threadId });
+        } catch {}
+      }
       return { activeModeId: input.id };
     },
   });
@@ -176,6 +187,7 @@ export default async function plugin(bb: BbPluginApi) {
         promptPrefix: params.promptPrefix,
         permissionMode: params.permissionMode ?? "full",
         skills: params.skills ?? [],
+        preferredModel: (params as any).preferredModel ?? null,
         isBuiltin: false,
         isEnabled: true,
       };

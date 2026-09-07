@@ -11,6 +11,7 @@ export const composerModeSchema = z.object({
   promptPrefix: z.string().max(4096),
   permissionMode: z.enum(["full", "readOnly"]).default("full"),
   skills: z.array(z.string()).default([]),
+  preferredModel: z.object({ model: z.string().min(1), routeProviderId: z.string().optional() }).nullable().optional().default(null),
   isBuiltin: z.boolean().default(false),
   isEnabled: z.boolean().default(true),
 });
