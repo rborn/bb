@@ -210,12 +210,20 @@ function ComposerModePicker() {
               b.textContent.includes("Extra High")),
         );
 
-        const currentModelLabel = modelBtn
-          ? modelBtn.textContent.split("\n")[0].trim()
+        const rawLabel = modelBtn
+          ? (modelBtn.innerText || modelBtn.textContent || "")
           : localStorage.getItem("bb.promptbox.model") || "Current Model";
+        const currentModelLabel = rawLabel
+          .split(/[\n\r]+/)[0]
+          ?.replace(/(None|Low|Medium|High|Extra High|Max|xhigh|ultracode)$/i, "")
+          .trim() || "Current Model";
         const searchPart = (pref.model.split("/").pop() || pref.model).toLowerCase();
-        const targetModelLabel =
-          pref.model.split("/").pop()?.replace(/-/g, " ") || pref.model;
+        const targetModelLabel = pref.model
+          .split("/")
+          .pop()
+          ?.split("-")
+          .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(" ") || pref.model;
 
         // If the model is different, prompt for cache-invalidation confirmation
         if (currentModelLabel && !currentModelLabel.toLowerCase().includes(searchPart)) {
@@ -249,52 +257,52 @@ function ComposerModePicker() {
       <button ref={btnRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2.5 py-1 text-xs hover:bg-muted"
+        className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1 text-xs font-medium hover:bg-muted transition-colors"
         aria-expanded={open}
         title={activeMode.description}
       >
         <span>{activeMode.icon}</span>
-        <span className="font-medium">{activeMode.name}</span>
+        <span>{activeMode.name}</span>
       </button>
       {open ? createPortal((
         <>
           <div className="fixed inset-0 z-40" onClick={()=>setOpen(false)} />
-          <div ref={pickerRef} style={{top:pos.top,left:pos.left}} className="fixed z-50 w-72 rounded-lg border border-border bg-popover p-2 shadow-lg">
-          <div className="max-h-72 overflow-auto text-xs">
-            {builtins.length ? <div className="px-1 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Built-in</div> : null}
+          <div ref={pickerRef} style={{top:pos.top,left:pos.left}} className="fixed z-50 w-80 rounded-xl border border-border bg-popover p-2.5 shadow-xl">
+          <div className="max-h-80 overflow-auto text-xs space-y-0.5">
+            {builtins.length ? <div className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Built-in</div> : null}
             {builtins.map((m) => (
               <button
                 key={m.id}
                 type="button"
                 onClick={() => void selectMode(m.id)}
-                className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-muted ${m.id === activeId ? "bg-muted" : ""}`}
+                className={`flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-muted transition-colors ${m.id === activeId ? "bg-muted" : ""}`}
               >
-                <span>{m.icon}</span>
-                <span className="flex-1">
-                  <span className="font-medium">{m.name}</span>
-                  <span className="ml-1 text-muted-foreground">— {m.description}</span>
+                <span className="text-sm mt-0.5">{m.icon}</span>
+                <span className="flex-1 leading-snug">
+                  <span className="font-medium text-foreground">{m.name}</span>
+                  <span className="ml-1.5 text-muted-foreground">— {m.description}</span>
                 </span>
               </button>
             ))}
-            {customs.length ? <div className="mt-2 px-1 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Custom Personas</div> : null}
+            {customs.length ? <div className="mt-2.5 pt-2 border-t border-border/60 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Custom Personas</div> : null}
             {customs.map((m) => (
               <button
                 key={m.id}
                 type="button"
                 onClick={() => void selectMode(m.id)}
-                className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-muted ${m.id === activeId ? "bg-muted" : ""}`}
+                className={`flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-muted transition-colors ${m.id === activeId ? "bg-muted" : ""}`}
               >
-                <span>{m.icon}</span>
-                <span className="flex-1">
-                  <span className="font-medium">{m.name}</span>
-                  <span className="ml-1 text-muted-foreground">— {m.description}</span>
+                <span className="text-sm mt-0.5">{m.icon}</span>
+                <span className="flex-1 leading-snug">
+                  <span className="font-medium text-foreground">{m.name}</span>
+                  <span className="ml-1.5 text-muted-foreground">— {m.description}</span>
                 </span>
               </button>
             ))}
 
           </div>
-          <div className="mt-2 border-t border-border pt-2">
-            <a href="#settings" onClick={() => setOpen(false)} className="block rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted">
+          <div className="mt-2.5 border-t border-border pt-2">
+            <a href="#settings" onClick={() => setOpen(false)} className="block rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
               Configure personas in Settings →
             </a>
           </div>
@@ -306,38 +314,43 @@ function ComposerModePicker() {
       {pendingSwitch ? createPortal((
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs" onClick={() => setPendingSwitch(null)}>
           <div
-            className="w-full max-w-sm rounded-xl border border-border bg-popover p-5 shadow-2xl animate-in fade-in zoom-in-95 duration-150"
+            className="w-full max-w-md rounded-2xl border border-border bg-popover p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center gap-2 text-sm font-semibold">
-              <span className="text-amber-500 text-base">⚠️</span>
+            <div className="flex items-center gap-2.5 text-base font-semibold text-foreground">
+              <span className="text-amber-500 text-lg">⚠️</span>
               <span>Switch Model to {pendingSwitch.targetModelLabel}?</span>
             </div>
-            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-              This persona recommends <strong className="text-foreground">{pendingSwitch.targetModelLabel}</strong>, but this thread is currently using <strong className="text-foreground">{pendingSwitch.currentModelLabel}</strong>.
+            <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+              This persona recommends <strong className="text-foreground font-semibold">{pendingSwitch.targetModelLabel}</strong>, but this thread is currently using <strong className="text-foreground font-semibold">{pendingSwitch.currentModelLabel}</strong>.
             </p>
-            <div className="mt-3 rounded-lg border border-border/60 bg-muted/40 p-2.5 text-[11px] text-muted-foreground leading-normal">
-              ⚡ <strong>Prompt cache reset</strong>: Switching models invalidates KV prompt caching. The entire previous conversation will be reprocessed at standard input token cost.
+            <div className="mt-4 rounded-xl border border-border/80 bg-muted/50 p-3.5 text-[11px] text-muted-foreground leading-relaxed space-y-1">
+              <div className="font-semibold text-foreground flex items-center gap-1.5">
+                <span>⚡</span> Prompt cache reset
+              </div>
+              <div>
+                Switching models invalidates the model&apos;s KV prompt cache. The entire conversation history will be reprocessed at standard input token cost on the next turn.
+              </div>
             </div>
-            <div className="mt-4 flex flex-col gap-2">
+            <div className="mt-6 flex flex-col gap-2.5">
               <button
                 type="button"
                 onClick={() => void executeSwitch(pendingSwitch.modeId, true)}
-                className="w-full rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:opacity-90 transition-opacity"
+                className="w-full rounded-lg bg-primary py-2.5 px-4 text-xs font-medium text-primary-foreground hover:opacity-90 transition-opacity shadow-xs"
               >
                 Switch to {pendingSwitch.targetModelLabel} &amp; Reset Cache
               </button>
               <button
                 type="button"
                 onClick={() => void executeSwitch(pendingSwitch.modeId, false)}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs font-medium text-foreground hover:bg-muted transition-colors"
+                className="w-full rounded-lg border border-border bg-background py-2.5 px-4 text-xs font-medium text-foreground hover:bg-muted transition-colors"
               >
                 Keep {pendingSwitch.currentModelLabel} (Preserve Cache)
               </button>
               <button
                 type="button"
                 onClick={() => setPendingSwitch(null)}
-                className="w-full py-1 text-center text-xs text-muted-foreground hover:text-foreground transition-colors"
+                className="w-full py-1.5 text-center text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
                 Cancel
               </button>
