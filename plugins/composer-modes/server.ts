@@ -241,7 +241,7 @@ export default async function plugin(bb: BbPluginApi) {
       if (!cmd || cmd === "list") {
         if (json) return { exitCode: 0, stdout: JSON.stringify({ modes: cfg.modes, activeModeId: cfg.activeModeId }, null, 2) };
         const lines = cfg.modes.map(
-          (m: ComposerMode) => `${m.isEnabled ? "●" : "○"} ${m.icon} ${m.id}: ${m.name} [${m.color}] ${m.isBuiltin ? "(builtin)" : ""}${m.permissionMode === "readOnly" ? " [readOnly]" : ""} (${m.description})`,
+          (m: ComposerMode) => `${m.isEnabled ? "●" : "○"} ${m.icon} ${m.id}: ${m.name} [${m.color}]${m.permissionMode === "readOnly" ? " [readOnly]" : ""} (${m.description})`,
         );
         return { exitCode: 0, stdout: `Active: ${cfg.activeModeId}\n${lines.join("\n")}` };
       }

@@ -564,7 +564,7 @@ function SettingsSection() {
             {data.modes.map((m) => (
               <tr key={m.id} className={data.activeModeId === m.id ? "bg-muted/30" : ""}>
                 <td className="px-3 py-2">
-                  <div className="flex items-center gap-2"><ModePill mode={m} /><span className={`ml-1 text-[10px] ${m.isBuiltin ? "text-muted-foreground" : "text-violet-600"}`}>{m.isBuiltin ? "builtin" : "custom"}</span>{data.activeModeId === m.id ? <span className="rounded bg-primary px-1.5 py-0.5 text-[10px] text-primary-foreground">active</span> : null}</div>
+                  <div className="flex items-center gap-2"><ModePill mode={m} />{data.activeModeId === m.id ? <span className="rounded bg-primary px-1.5 py-0.5 text-[10px] text-primary-foreground">active</span> : null}</div>
                   <div className="mt-1 text-xs text-muted-foreground line-clamp-2">{m.description}</div>
                 </td>
                 <td className="px-3 py-2">
@@ -577,11 +577,12 @@ function SettingsSection() {
                   </label>
                 </td>
                 <td className="px-3 py-2 text-right">
-                  {!m.isBuiltin ? (
-                    <button type="button" onClick={() => { if (confirm(`Delete ${m.name}?`)) void rpc.call("deleteMode", { id: m.id }).then(() => void load()).catch((e) => setError(String(e))); }} className="text-xs text-destructive hover:underline">Delete</button>
-                  ) : (
-                    <button type="button" onClick={() => { setForm({ ...m }); setShowNew(true); }} className="text-xs text-muted-foreground hover:underline">Edit</button>
-                  )}
+                  <div className="flex justify-end items-center gap-2">
+                    <button type="button" onClick={() => { setForm({ ...m }); setShowNew(true); }} className="text-xs text-muted-foreground hover:text-foreground hover:underline">Edit</button>
+                    {!m.isBuiltin ? (
+                      <button type="button" onClick={() => { if (confirm(`Delete ${m.name}?`)) void rpc.call("deleteMode", { id: m.id }).then(() => void load()).catch((e) => setError(String(e))); }} className="text-xs text-destructive hover:underline">Delete</button>
+                    ) : null}
+                  </div>
                 </td>
               </tr>
             ))}
