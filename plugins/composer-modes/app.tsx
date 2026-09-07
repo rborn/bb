@@ -98,10 +98,10 @@ function ComposerModePicker() {
   // legacy per-thread override retained for migration but global active is now authoritative so Settings Active syncs immediately
   void loadLocalActive;
 
-  const filtered = useMemo(() => data?.modes.filter((m) => m.isEnabled) ?? [], [data]);
-
-  const builtins = filtered.filter((m) => m.isBuiltin);
-  const customs = filtered.filter((m) => !m.isBuiltin);
+  const allModes = useMemo(
+    () => (data?.modes.filter((m) => m.isEnabled) ?? []).sort((a, b) => a.name.localeCompare(b.name)),
+    [data],
+  );
 
   const [pendingSwitch, setPendingSwitch] = useState<{
     modeId: string;
@@ -256,8 +256,7 @@ function ComposerModePicker() {
           <div className="fixed inset-0 z-40" onClick={()=>setOpen(false)} />
           <div ref={pickerRef} style={{top:pos.top,left:pos.left}} className="fixed z-50 w-80 rounded-xl border border-border bg-popover p-2.5 shadow-xl">
           <div className="max-h-80 overflow-auto text-xs space-y-0.5">
-            {builtins.length ? <div className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Built-in</div> : null}
-            {builtins.map((m) => (
+            {allModes.map((m) => (
               <button
                 key={m.id}
                 type="button"
@@ -267,26 +266,10 @@ function ComposerModePicker() {
                 <span className="text-sm mt-0.5">{m.icon}</span>
                 <span className="flex-1 leading-snug">
                   <span className="font-medium text-foreground">{m.name}</span>
-                  <span className="ml-1.5 text-muted-foreground">— {m.description}</span>
+                  {m.description ? <span className="ml-1.5 text-muted-foreground">{m.description}</span> : null}
                 </span>
               </button>
             ))}
-            {customs.length ? <div className="mt-2.5 pt-2 border-t border-border/60 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Custom Personas</div> : null}
-            {customs.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => void selectMode(m.id)}
-                className={`flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-muted transition-colors ${m.id === activeId ? "bg-muted" : ""}`}
-              >
-                <span className="text-sm mt-0.5">{m.icon}</span>
-                <span className="flex-1 leading-snug">
-                  <span className="font-medium text-foreground">{m.name}</span>
-                  <span className="ml-1.5 text-muted-foreground">— {m.description}</span>
-                </span>
-              </button>
-            ))}
-
           </div>
           <div className="mt-2.5 border-t border-border pt-2">
             <button
@@ -452,7 +435,7 @@ function SettingsSection() {
       setError("ID and Name required");
       return;
     }
-    { const ids=new Set((data?.modes ?? []).filter(m=>m.id!==form.id).map(m=>m.id.toLowerCase())); const names=new Set((data?.modes ?? []).filter(m=>m.name!==form.name).map(m=>m.name.toLowerCase())); const editing=data?.modes?.find(m=>m.id===form.id); if(!editing && ids.has(form.id!.toLowerCase())){ setError(`ID "${form.id}" already exists — pick another.`); return; } if(names.has(form.name!.toLowerCase()) && (!editing || editing.name.toLowerCase()!==form.name!.toLowerCase())){ setError(`Name "${form.name}" already exists — pick another.`); return; } }
+    { const ids=new Set((data?.modes ?? []).filter(m=>m.id!==form.id).map(m=>m.id.toLowerCase())); const names=new Set((data?.modes ?? []).filter(m=>m.name!==form.name).map(m=>m.name.toLowerCase())); const editing=data?.modes?.find(m=>m.id===form.id); if(!editing && ids.has(form.id!.toLowerCase())){ setError(`ID "${form.id}" already exists. Please pick another.`); return; } if(names.has(form.name!.toLowerCase()) && (!editing || editing.name.toLowerCase()!==form.name!.toLowerCase())){ setError(`Name "${form.name}" already exists. Please pick another.`); return; } }
     try {
       await rpc.call("saveMode", {
         id: form.id!,
@@ -540,7 +523,7 @@ function SettingsSection() {
           </div>
           <label className="block text-xs">Description<input value={form.description ?? ""} onChange={(e) => setForm({ ...form, description: e.target.value })} maxLength={200} className="mt-1 w-full rounded border border-input px-2 py-1.5 text-sm" /></label>
           <label className="block text-xs">System prompt <span className={`ml-1 text-[11px] ${(form.promptPrefix?.length ?? 0) > 4096 ? "text-destructive font-medium" : "text-muted-foreground"}`}>{form.promptPrefix?.length ?? 0}/4096</span><textarea value={form.promptPrefix ?? ""} onChange={(e) => setForm({ ...form, promptPrefix: e.target.value.slice(0, 4096) })} maxLength={4096} rows={4} className="mt-1 w-full rounded border border-input px-2 py-1.5 text-sm" /></label>
-          <label className="block text-xs">Preferred model <span className="font-normal text-muted-foreground">— same list thread sees</span>
+          <label className="block text-xs">Preferred model <span className="font-normal text-muted-foreground">(same list thread sees)</span>
             <select
               value={(form as any).preferredModel ? `${(form as any).preferredModel.routeProviderId ?? ""}:${(form as any).preferredModel.model}` : ""}
               onChange={(e)=>{
@@ -555,10 +538,10 @@ function SettingsSection() {
               }}
               className="mt-1 w-full rounded border border-input bg-background px-2 py-1.5 text-sm"
             >
-              <option value="">No preference — use thread default</option>
+              <option value="">No preference (use thread default)</option>
               {modelsLoading ? <option disabled>Loading models…</option> : null}
               {availableModels.map(mm=>(
-                <option key={`${mm.routeProviderId ?? ""}:${mm.model}`} value={`${mm.routeProviderId ?? ""}:${mm.model}`}>{mm.label} {mm.routeProviderId ? `(${mm.routeProviderId})` : ""} — {mm.model}</option>
+                <option key={`${mm.routeProviderId ?? ""}:${mm.model}`} value={`${mm.routeProviderId ?? ""}:${mm.model}`}>{mm.label} {mm.routeProviderId ? `(${mm.routeProviderId})` : ""}: {mm.model}</option>
               ))}
             </select>
           </label>

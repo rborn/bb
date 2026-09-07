@@ -21,7 +21,7 @@ export const defaultModes: ComposerMode[] = [
     color: "amber",
     description: "Cursor-style planning. Writes exclusively to plans/<name>.md and AGENTS.md.",
     promptPrefix:
-      "PLAN MODE — STRICT: You are a software architect creating a plan.\n1. Write the plan to plans/<date>-<topic>.md.\n2. Do NOT edit code, run build commands, or modify files outside plans/ and AGENTS.md.\n3. Present options clearly and request explicit user consent before implementation.",
+      "PLAN MODE (STRICT): You are a software architect creating a plan.\n1. Write the plan to plans/<date>-<topic>.md.\n2. Do NOT edit code, run build commands, or modify files outside plans/ and AGENTS.md.\n3. Present options clearly and request explicit user consent before implementation.",
     permissionMode: "full",
     skills: [],
     preferredModel: null,
@@ -35,7 +35,7 @@ export const defaultModes: ComposerMode[] = [
     color: "emerald",
     description: "Pure codebase exploration and Q&A.",
     promptPrefix:
-      "ASK MODE — STRICT: You are an advisor answering questions.\n1. Do NOT call file modification tools (edit, write, apply_patch).\n2. Explain the architecture, trace execution flows, and present concrete solutions.",
+      "ASK MODE (STRICT): You are an advisor answering questions.\n1. Do NOT call file modification tools (edit, write, apply_patch).\n2. Explain the architecture, trace execution flows, and present concrete solutions.",
     permissionMode: "readOnly",
     skills: [],
     preferredModel: null,
