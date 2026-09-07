@@ -289,21 +289,12 @@ function ComposerModePicker() {
             className="w-full max-w-md rounded-2xl border border-border bg-popover p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center gap-2.5 text-base font-semibold text-foreground">
-              <span className="text-amber-500 text-lg">⚠️</span>
-              <span>Switch Model to {pendingSwitch.targetModelLabel}?</span>
+            <div className="text-base font-semibold text-foreground">
+              Switch model to {pendingSwitch.targetModelLabel}?
             </div>
-            <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-              This persona recommends <strong className="text-foreground font-semibold">{pendingSwitch.targetModelLabel}</strong>, but this thread is currently using <strong className="text-foreground font-semibold">{pendingSwitch.currentModelLabel}</strong>.
+            <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground">
+              This persona recommends <strong className="text-foreground font-semibold">{pendingSwitch.targetModelLabel}</strong>, but this thread is currently using <strong className="text-foreground font-semibold">{pendingSwitch.currentModelLabel}</strong>. Switching models resets prompt caching for this thread, so previous turns will be processed as new input tokens.
             </p>
-            <div className="mt-4 rounded-xl bg-muted/50 p-3.5 text-[11px] text-muted-foreground leading-relaxed space-y-1">
-              <div className="font-semibold text-foreground flex items-center gap-1.5">
-                <span>⚡</span> Prompt cache reset
-              </div>
-              <div>
-                Switching models invalidates the model&apos;s KV prompt cache. The entire conversation history will be reprocessed at standard input token cost on the next turn.
-              </div>
-            </div>
             <div className="mt-6 flex flex-col gap-2.5">
               <button
                 type="button"
