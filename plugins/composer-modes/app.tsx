@@ -167,15 +167,23 @@ function ComposerModePicker() {
               modelBtn.click();
               setTimeout(() => {
                 const options = Array.from(document.querySelectorAll('[role="option"]'));
-                const target = options.find((o) =>
-                  (o.textContent || "").toLowerCase().includes(searchPart),
-                );
+                const rawModel = pref.model.toLowerCase().replace(/[^a-z0-9]/g, "");
+                const modelSlug = (pref.model.split("/").pop() || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+                const target = options.find((o) => {
+                  const optText = (o.textContent || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+                  return optText.includes(rawModel) || (modelSlug && optText.includes(modelSlug));
+                });
                 if (target) {
                   (target as HTMLElement).click();
+                  setTimeout(() => {
+                    if (modelBtn.getAttribute("aria-expanded") === "true") {
+                      modelBtn.click();
+                    }
+                  }, 50);
                 } else {
                   modelBtn.click();
                 }
-              }, 40);
+              }, 120);
             }
           } catch {}
         }
