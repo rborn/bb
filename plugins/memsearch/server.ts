@@ -4,6 +4,7 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  writeFileSync,
 } from "node:fs";
 import { execFileSync } from "node:child_process";
 import path, { join } from "node:path";
@@ -55,6 +56,40 @@ export function extractCandidates(...texts: (string | undefined)[]): string[] {
   return [...new Set(out)].slice(0, 8);
 }
 
+export function forgetThreadBullets(projectPath: string, threadId: string): number {
+  let removed = 0;
+  try {
+    for (const f of dayFiles(projectPath)) {
+      const lines = readFileSync(f, "utf8").split("\n");
+      const kept = lines.filter((l) => {
+        const hit = l.includes(`(${threadId})`) || l.includes(`(${threadId},`);
+        if (hit) removed++;
+        return !hit;
+      });
+      if (kept.length !== lines.length) writeFileSync(f, kept.join("\n"), "utf8");
+    }
+  } catch { /* best effort */ }
+  return removed;
+}
+
+export function markThreadBulletsArchived(projectPath: string, threadId: string): number {
+  let marked = 0;
+  try {
+    for (const f of dayFiles(projectPath)) {
+      const raw = readFileSync(f, "utf8");
+      const next = raw.split("\n").map((l) => {
+        if (l.includes(`(${threadId})`) && !l.includes(`(${threadId},`)) {
+          marked++;
+          return l.replace(`(${threadId})`, `(${threadId}, archived)`);
+        }
+        return l;
+      });
+      if (marked > 0) writeFileSync(f, next.join("\n"), "utf8");
+    }
+  } catch { /* best effort */ }
+  return marked;
+}
+
 export function appendBullets(projectPath: string, threadId: string, bullets: string[]): number {
   if (bullets.length === 0) return 0;
   ensureMemDir(projectPath);
@@ -62,6 +97,15 @@ export function appendBullets(projectPath: string, threadId: string, bullets: st
   const lines = bullets.map((b) => `- [${time}] (${threadId}) ${b}`).join("\n");
   appendFileSync(dayFile(projectPath), `${lines}\n`, "utf8");
   return bullets.length;
+}
+
+export function dayFiles(projectPath: string): string[] {
+  const dir = memDir(projectPath);
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .filter((f) => /^\d{4}-\d{2}-\d{2}\.md$/.test(f))
+    .sort()
+    .map((f) => join(dir, f));
 }
 
 export function recentBullets(projectPath: string): string[] {
@@ -224,6 +268,29 @@ export function parseExtractorOutput(text: string | undefined): string[] {
 
 export default function plugin(bb: BbPluginApi): void {
   const log = (...a: any[]) => (bb.log as any)?.info?.(`[memsearch] ${a.map((x) => String(x)).join(" ")}`);
+  const bucketForThread = async (thread: any): Promise<{ projectId: string; projectPath: string } | null> => {
+    const projectId = thread?.projectId ?? thread?.project?.id;
+    if (!projectId || typeof projectId !== "string" || String(projectId).startsWith("proj_personal")) return null;
+    const cached = pathCache.get(String(projectId));
+    const envPath = cached ? null : await resolveEnvPath(bb, thread?.environmentId);
+    const projectPath = cached ?? (envPath ? bucketFor(envPath) : null);
+    if (!projectPath) return null;
+    return { projectId: String(projectId), projectPath };
+  };
+  bb.events.on("thread.deleted", (async (...args: any[]) => {
+    const { thread } = args[0] ?? {};
+    const b = await bucketForThread(thread);
+    if (!b) return;
+    const n = forgetThreadBullets(b.projectPath, thread?.id);
+    log(`forget ${n} bullets from deleted`, thread?.id, b.projectPath);
+  }) as never);
+  bb.events.on("thread.archived", (async (...args: any[]) => {
+    const { thread } = args[0] ?? {};
+    const b = await bucketForThread(thread);
+    if (!b) return;
+    const n = markThreadBulletsArchived(b.projectPath, thread?.id);
+    log(`archived ${n} bullets from`, thread?.id, b.projectPath);
+  }) as never);
   bb.events.on("thread.idle", (async (...args: any[]) => {
     log("idle fired", JSON.stringify(args[0] ?? null).slice(0, 200));
     const { thread, lastAssistantText } = args[0] ?? {};

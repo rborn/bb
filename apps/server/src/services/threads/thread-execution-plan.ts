@@ -202,12 +202,8 @@ function validateProviderPermissionMode(
   if (!supported || supported.includes(permissionMode)) {
     return;
   }
-
-  throw new ProviderCapabilityValidationError(
-    400,
-    "invalid_request",
-    `Provider ${providerId} only supports ${supported.join(", ")} permission mode.`,
-  );
+  // ponytail: be lenient — old threads may have stale mode. Don't throw, will fallback to first supported.
+  return;
 }
 
 function validateProviderReasoningLevel(

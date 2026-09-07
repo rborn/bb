@@ -1,4 +1,4 @@
-import { useLocation, useMatch } from "react-router-dom";
+import { useInRouterContext, useLocation, useMatch } from "react-router-dom";
 import { PERSONAL_PROJECT_ID } from "@bb/domain";
 import { isToolsRoutePath, TOOLS_SKILLS_ROUTE_PATH } from "@/lib/route-paths";
 
@@ -14,7 +14,19 @@ interface RouteState {
   isProjectlessView: boolean;
 }
 
-export function useRouteState(): RouteState {
+const DEFAULT_ROUTE_STATE: RouteState = {
+  projectId: undefined,
+  threadId: undefined,
+  isThreadView: false,
+  isArchivedView: false,
+  isSettingsView: false,
+  isToolsView: false,
+  isSkillsView: false,
+  isRootView: false,
+  isProjectlessView: false,
+};
+
+function useMatchedRouteState(): RouteState {
   const location = useLocation();
   const projectMatch = useMatch("/projects/:projectId/*");
   const projectThreadMatch = useMatch(
@@ -67,4 +79,10 @@ export function useRouteState(): RouteState {
       projectlessThreadId !== undefined ||
       Boolean(projectlessArchivedMatch),
   };
+}
+
+export function useRouteState(): RouteState {
+  const inRouter = useInRouterContext();
+  if (!inRouter) return DEFAULT_ROUTE_STATE;
+  return useMatchedRouteState();
 }

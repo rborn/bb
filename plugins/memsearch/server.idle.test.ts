@@ -80,6 +80,38 @@ describe("thread.idle pipeline", () => {
     expect(body).toContain("thr_old"); // source attribution, not the invoking thread
   }, 20000); // backfill loads the real vec model on first index
 
+  it("strips a deleted thread's bullets, keeps others", async () => {
+    const { host, projectDir } = await setup({ extractorOutput: "- fact" });
+    const { appendBullets, forgetThreadBullets, markThreadBulletsArchived } = await import("./server");
+    appendBullets(projectDir, "thr_gone", ["Owns a blue car"]);
+    appendBullets(projectDir, "thr_kept", ["Likes Japan"]);
+    expect(forgetThreadBullets(projectDir, "thr_gone")).toBe(1);
+    const body = readFileSync(join(projectDir, ".bb", "memsearch", memFiles(projectDir)[0]), "utf8");
+    expect(body).not.toContain("blue car");
+    expect(body).toContain("Likes Japan");
+    expect(markThreadBulletsArchived(projectDir, "thr_kept")).toBe(1);
+    const marked = readFileSync(join(projectDir, ".bb", "memsearch", memFiles(projectDir)[0]), "utf8");
+    expect(marked).toContain("(thr_kept, archived)");
+    expect(forgetThreadBullets(projectDir, "thr_kept")).toBe(1); // archived form also stripped
+  });
+
+  it("emits forget/archive via thread events", async () => {
+    const { host, projectDir } = await setup({ extractorOutput: "- fact" });
+    const { appendBullets } = await import("./server");
+    appendBullets(projectDir, "thr_e", ["Owns a blue car"]);
+    await host.harness.emitThreadEvent("thread.archived", {
+      thread: { id: "thr_e", projectId: "proj Ev", environmentId: "env_1" } as any,
+    });
+    await host.harness.emitThreadEvent("thread.deleted", {
+      thread: { id: "thr_e", projectId: "proj Ev", environmentId: "env_1" } as any,
+    });
+    await vi.waitFor(() => {
+      const files = memFiles(projectDir);
+      const body = files.length > 0 ? readFileSync(join(projectDir, ".bb", "memsearch", files[0]), "utf8") : "";
+      expect(body).not.toContain("blue car");
+    }, { timeout: 5000 });
+  });
+
   it("skips personal projects", async () => {
     const { host, projectDir } = await setup({ extractorOutput: "- fact" });
     await host.harness.emitThreadEvent("thread.idle", {

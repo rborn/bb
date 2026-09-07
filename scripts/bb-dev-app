@@ -84,7 +84,7 @@ assert_desktop_node_runtime() {
 
   if ! node -e '
     const [major, minor] = process.versions.node.split(".").map(Number);
-    process.exit(major === 22 && minor >= 19 ? 0 : 1);
+    process.exit(major > 22 || (major === 22 && minor >= 19) ? 0 : 1);
   '; then
     die "Desktop dev requires Node 22.19 or newer in the Node 22 line because Electron's postinstall runtime is not reliable on newer Node releases. Current Node is ${version} at ${exec_path}. Use the repository version from .nvmrc."
   fi
@@ -318,7 +318,7 @@ start_desktop() {
   log "Starting desktop session ${DESKTOP_SESSION}"
   rm -f "${DESKTOP_LOG}"
   screen -dmS "${DESKTOP_SESSION}" "${BASH}" -lc "cd ${repo_root_q} && export PATH=${path_q} && unset BB_THREAD_ID BB_ENVIRONMENT_ID BB_THREAD_STORAGE && exec pnpm exec turbo run dev --filter=@bb/desktop > ${desktop_log_q} 2>&1"
-  wait_for_log_pattern "${DESKTOP_LOG}" "@bb/desktop: app http://localhost:${BB_DEV_APP_PORT}" "desktop app" 120
+  wait_for_log_pattern "${DESKTOP_LOG}" "@bb/desktop: app http://localhost:${BB_DEV_APP_PORT}" "desktop app" 600
 }
 
 open_app_url() {

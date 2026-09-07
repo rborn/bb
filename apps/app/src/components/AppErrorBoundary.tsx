@@ -44,13 +44,22 @@ export class AppErrorBoundary extends Component<
               {error.stack ?? error.message}
             </pre>
           </details>
-          <button
-            type="button"
-            className="mt-4 w-full cursor-pointer rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground"
-            onClick={() => window.location.reload()}
-          >
-            Reload bb
-          </button>
+          <div className="mt-4 flex gap-2">
+            <button
+              type="button"
+              className="flex-1 cursor-pointer rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground"
+              onClick={() => window.location.reload()}
+            >
+              Reload bb
+            </button>
+            <button
+              type="button"
+              className="cursor-pointer rounded-md border border-border bg-card px-3 py-2 text-sm"
+              onClick={() => navigator.clipboard.writeText(error.stack ?? error.message)}
+            >
+              Copy error
+            </button>
+          </div>
         </div>
       </div>
     );
