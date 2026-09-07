@@ -54,7 +54,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@bb/shared-ui/tooltip";
-import { ComposerActionsSlot } from "@/components/plugin/PluginComposerActions";
+import { ComposerActionsSlot, ComposerLeftActionsSlot } from "@/components/plugin/PluginComposerActions";
 import { useResolvedComposerEditor } from "@/components/plugin/composer-slot-hooks";
 import {
   composerScopeIdentity,
@@ -3171,6 +3171,7 @@ export function PromptBoxInternal({
                       !suppressPluginComposerCustomizations
                     }
                   />
+                  {!suppressPluginComposerCustomizations ? <ComposerLeftActionsSlot includePluginContributions={!showCompactLayout} /> : null}
                   {footerStart}
                 </div>
               ) : null}

@@ -1,0 +1,38 @@
+{
+  "name": "bb-plugin-composer-modes",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Per-turn Plan/Ask/Agent modes and custom AI personas with tool permissions.",
+  "engines": {
+    "bb": ">=0.0"
+  },
+  "bb": {
+    "name": "Composer Modes & Personas",
+    "description": "Per-turn Plan/Ask/Agent modes and custom AI personas with tool permissions.",
+    "branding": {
+      "icon": "Sparkles"
+    },
+    "server": "./server.ts",
+    "app": "./app.tsx"
+  },
+  "keywords": ["bb-plugin"],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@bb/shared-ui": "workspace:*",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@get-bb/plugin-sdk": "workspace:*",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "jsdom": "^29.0.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vitest": "^4.1.1"
+  }
+}

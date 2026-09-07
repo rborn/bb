@@ -67,24 +67,50 @@ export function ComposerActionsSlot({
   return (
     <>
       {actions.length > 0 && scopeKey !== null ? (
-        <PluginComposerActionList actions={actions} scopeKey={scopeKey} />
+        <PluginComposerActionList actions={actions} scopeKey={scopeKey} filter={(a) => a.action.id !== "mode-picker"} />
       ) : null}
       {children}
     </>
   );
 }
 
+export function ComposerLeftActionsSlot({
+  view,
+  includePluginContributions = true,
+}: {
+  view?: ComposerView;
+  includePluginContributions?: boolean;
+}) {
+  const providedView = useOptionalPluginComposerView();
+  const composerView = view ?? providedView;
+  const actions = useResolvedComposerActions(
+    includePluginContributions ? (composerView?.scope.kind ?? null) : null,
+  );
+  const scopeKey =
+    composerView === undefined
+      ? null
+      : composerScopeIdentity(composerView.scope);
+  return actions.length > 0 && scopeKey !== null ? (
+    <PluginComposerActionList actions={actions} scopeKey={scopeKey} filter={(a) => a.action.id === "mode-picker"} />
+  ) : null;
+}
+
 function PluginComposerActionList({
   actions,
   scopeKey,
+  filter,
 }: {
   actions: readonly PluginComposerActionContribution[];
   scopeKey: string;
+  filter?: (a: PluginComposerActionContribution) => boolean;
 }) {
+  const filtered = filter ? actions.filter(filter) : actions;
+  if (filtered.length === 0) return null;
+  const actionsToUse = filtered;
   const usageCounts = usePluginComposerActionUsage();
   const orderedGroups = useMemo(
-    () => orderActionGroups(actions, usageCounts),
-    [actions, usageCounts],
+    () => orderActionGroups(actionsToUse, usageCounts),
+    [actionsToUse, usageCounts],
   );
   const [overflowOpen, setOverflowOpen] = useState(false);
   const [openPluginOrder, setOpenPluginOrder] = useState<

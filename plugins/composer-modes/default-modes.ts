@@ -1,0 +1,68 @@
+import type { ComposerMode } from "./types.js";
+
+export const defaultModes: ComposerMode[] = [
+  {
+    id: "agent",
+    name: "Agent",
+    icon: "🤖",
+    color: "slate",
+    description: "Full coding agent with all tools enabled.",
+    promptPrefix: "",
+    permissionMode: "full",
+    skills: [],
+    isBuiltin: true,
+    isEnabled: true,
+  },
+  {
+    id: "plan",
+    name: "Plan",
+    icon: "📋",
+    color: "amber",
+    description: "Cursor-style planning. Writes exclusively to plans/<name>.md and AGENTS.md.",
+    promptPrefix:
+      "PLAN MODE — STRICT: You are a software architect creating a plan.\n1. Write the plan to plans/<date>-<topic>.md.\n2. Do NOT edit code, run build commands, or modify files outside plans/ and AGENTS.md.\n3. Present options clearly and request explicit user consent before implementation.",
+    permissionMode: "full",
+    skills: [],
+    isBuiltin: true,
+    isEnabled: true,
+  },
+  {
+    id: "ask",
+    name: "Ask",
+    icon: "🔍",
+    color: "emerald",
+    description: "Pure codebase exploration and Q&A.",
+    promptPrefix:
+      "ASK MODE — STRICT: You are an advisor answering questions.\n1. Do NOT call file modification tools (edit, write, apply_patch).\n2. Explain the architecture, trace execution flows, and present concrete solutions.",
+    permissionMode: "readOnly",
+    skills: [],
+    isBuiltin: true,
+    isEnabled: true,
+  },
+  {
+    id: "writer",
+    name: "Writer",
+    icon: "✍️",
+    color: "violet",
+    description: "Technical documentation, architecture guides, and user manuals.",
+    promptPrefix:
+      "WRITER MODE: You are a principal technical writer. Focus on clarity, concise markdown, exact code blocks, and consistent technical terminology. Avoid fluff, filler, and unnecessary adjectives.",
+    permissionMode: "full",
+    skills: [],
+    isBuiltin: true,
+    isEnabled: true,
+  },
+  {
+    id: "seo",
+    name: "SEO",
+    icon: "🌐",
+    color: "sky",
+    description: "Search engine and AI answer engine optimization.",
+    promptPrefix:
+      "SEO SPECIALIST: Analyze page hierarchy, structured data (JSON-LD), AI answer citations (Perplexity/ChatGPT), and content relevance. Apply high-relevance keyword architecture without keyword stuffing.",
+    permissionMode: "full",
+    skills: ["seo-audit", "ai-seo", "schema"],
+    isBuiltin: true,
+    isEnabled: true,
+  },
+];

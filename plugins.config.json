@@ -1,7 +1,8 @@
 {
   "plugins": [
     "model-lens",
-    "memsearch"
+    "memsearch",
+    "composer-modes"
   ],
   "outDir": "release/plugins"
 }

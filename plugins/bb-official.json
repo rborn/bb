@@ -122,6 +122,10 @@
     "category": "notifications",
     "screenshots": []
   },
+  "composer-modes": {
+    "category": "agents-and-providers",
+    "screenshots": []
+  },
   "browser-automation": {
     "category": "agents-and-providers",
     "screenshots": []

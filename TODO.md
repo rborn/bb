@@ -8,7 +8,7 @@
 
 - [ ] [cowork][v1] plugin: pi slash commands in BB / menu — expose pi-native `/reload`, `/model`, `/help`, `/skills` etc. via provider-bridge autocomplete (like codex `/plan`), package as publishable plugin
 
-- [ ] [cowork][v1] composer: per-turn Plan/Ask/Agent mode switch (Cursor-like) — move mode from thread-level (--plan at spawn) to per-message draftModeAtom + queue permissionMode, add bb thread update --permission-mode, colored pill (Agent default/gray, Ask green/emerald, Plan yellow/amber) in thread header + composer segmented control
+- [x] [cowork][v1] composer: per-turn Plan/Ask/Agent mode switch — moved to `plugins/composer-modes` (Cursor-like left pill + per-thread localStorage + kv `composer-modes:v1` + Settings Modes & Personas). Core stub `ComposerModePicker` removed.
 
 - [ ] [cowork][v1] thread-view: handle ponytail-mode + context-prune-stats custom events as collapsed CustomEntry row (no Working... hang) — emit outside turn or auto turn-ended, render as tiny muted row (Ponytail: ultra / cost $0.02)
 

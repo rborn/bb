@@ -53,9 +53,7 @@ import {
   parseEnvironmentValue,
 } from "@/components/pickers/environment-picker-value";
 import { PermissionModePicker } from "@/components/pickers/PermissionModePicker";
-import { useAtom } from "jotai";
-import { planFileNameFromPrompt, PLANS_AGENTS_SNIPPET } from "@/lib/planMode";
-import { ComposerModePicker, composerModeAtom, pendingNewThreadModeAtom, type ComposerMode } from "@/components/promptbox/ComposerModePicker";
+
 import {
   ProjectSelector,
   type ProjectSelectorCreateProjectConfig,
@@ -243,16 +241,6 @@ export const NewThreadPromptBoxUI = memo(function NewThreadPromptBoxUI({
   );
   const voice = usePromptVoice(promptBoxRef);
   const attachmentCount = attachments.items?.length ?? 0;
-  const [draftMode] = useAtom(composerModeAtom);
-  const injectPrefixNt = (msg: string) => {
-    if (draftMode === "plan") return planInstructionFor(msg);
-    if (draftMode === "ask") return `ASK MODE — STRICT: You MUST NOT edit, write, or execute any files or commands. Read-only. Answer questions, explain code, propose plan in chat only. Do NOT call edit/write/bash/apply_patch.\n\nUser question: ${msg}`;
-    return msg;
-  };
-  const planInstructionFor = (msg: string) => {
-    const file = planFileNameFromPrompt(msg);
-    return `PLAN MODE — STRICT: Cursor-style — IMMEDIATELY write plan to ${file} (create plans/ dir if missing), Structure: # Goal, ## Context, ## Plan (numbered steps + file paths), ## Risks. Do NOT ask user to choose — pick defaults. Task: ${msg}\nAfter writing, ensure AGENTS.md has:\n${PLANS_AGENTS_SNIPPET.trim()}\nCRITICAL: Write file NOW. No code edits except ${file} and AGENTS.md. No code changes.`;
-  };
   const [composerLayout, setComposerLayout] =
     useState<ComposerView["layout"]>("expanded");
   const composerView = usePluginComposerViewModel({
@@ -263,19 +251,7 @@ export const NewThreadPromptBoxUI = memo(function NewThreadPromptBoxUI({
     isRunning: false,
     isSubmitting,
   });
-  if ((composerView as any)?.onSubmit && !(composerView as any).__wrappedForMode) {
-    (composerView as any).__wrappedForMode = true;
-    const __prevNt = (composerView as any).onSubmit.bind(composerView);
-    (composerView as any).onSubmit = () => {
-      const raw = (composerView as any).message ?? "";
-      if (draftMode !== "agent" && raw && !raw.startsWith("ASK MODE") && !raw.startsWith("PLAN MODE")) {
-        const injected = injectPrefixNt(raw);
-        (composerView as any).message = injected;
-        if ((composerView as any).setMessage) (composerView as any).setMessage(injected);
-      }
-      return __prevNt();
-    };
-  }
+
 
 
   const controller = useComposerExtensionController({
@@ -370,26 +346,6 @@ const DefaultNewThreadComposer = memo(function DefaultNewThreadComposer({
     () => permissionDisplayForPromptMode(promptModeInput),
     [promptModeInput],
   );
-  const [draftMode, setDraftMode] = useAtom(composerModeAtom);
-  const [, setPending] = useAtom(pendingNewThreadModeAtom);
-  const handleModeChange = (m: ComposerMode) => { setDraftMode(m); setPending(m); };
-  const injectPrefixNt = (msg: string) => {
-    if (draftMode === "plan") return planInstructionFor(msg);
-    if (draftMode === "ask") return `ASK MODE — STRICT: You MUST NOT edit, write, or execute any files or commands. Read-only. Answer questions, explain code, propose plan in chat only. Do NOT call edit/write/bash/apply_patch.\n\nUser question: ${msg}`;
-    return msg;
-  };
-
-  const planInstructionFor = (msg: string) => {
-    const file = planFileNameFromPrompt(msg);
-    return `PLAN MODE — STRICT: Cursor-style — IMMEDIATELY write plan to ${file} (create plans/ dir if missing), Structure: # Goal, ## Context, ## Plan (numbered steps + file paths), ## Risks. Do NOT ask user to choose — pick defaults. Task: ${msg}\nAfter writing, ensure AGENTS.md has:\n${PLANS_AGENTS_SNIPPET.trim()}\nCRITICAL: Write file NOW. No code edits except ${file} and AGENTS.md. No code changes.`;
-  };
-  const handleSubmit = () => {
-    if (draftMode !== "agent" && value && !value.startsWith("ASK MODE") && !value.startsWith("PLAN MODE")) {
-      const injected = injectPrefixNt(value);
-      onChange(injected, [...mentionRanges]);
-    }
-    onSubmit();
-  };
   const permissionPickerDisabledByPlanMode = isPlanModePrompt(promptModeInput);
   const submitTitle = isSubmitting
     ? "Submitting..."
@@ -417,7 +373,7 @@ const DefaultNewThreadComposer = memo(function DefaultNewThreadComposer({
         value={value}
         mentionRanges={mentionRanges}
         onChange={onChange}
-        onSubmit={handleSubmit}
+        onSubmit={onSubmit}
         textEffects={textEffects}
         onComposerLayoutChange={onComposerLayoutChange}
         history={history}
@@ -438,7 +394,7 @@ const DefaultNewThreadComposer = memo(function DefaultNewThreadComposer({
         minHeight={NEW_THREAD_PROMPT_BOX_MIN_HEIGHT}
         placeholder={placeholder}
         header={modeConfig.header}
-        footerStart={<div className="flex items-center gap-2"><ComposerModePicker value={draftMode} onChange={handleModeChange} /><ExecutionControls {...execution} /></div>}
+        footerStart={<ExecutionControls {...execution} />}
       />
       {}
       <div className="mt-1 flex select-none items-center justify-between gap-2 px-3.5">
