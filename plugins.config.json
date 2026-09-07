@@ -1,0 +1,7 @@
+{
+  "plugins": [
+    "model-lens",
+    "memsearch"
+  ],
+  "outDir": "release/plugins"
+}
