@@ -12,7 +12,7 @@ import {
   type AvailableModel,
   type ProviderInfo,
 } from "@bb/domain";
-import { getAppSettings, getPluginKvValue } from "@bb/db";
+import { getAppSettings } from "@bb/db";
 import { type HostDaemonRetryableOnlineRpcCommand } from "@bb/host-daemon-contract";
 import type { ProviderModelListMemoValue } from "../../lifecycle-dedupers.js";
 import type { LoggedWorkSessionDeps } from "../../types.js";
@@ -508,58 +508,13 @@ export async function resolveSystemExecutionOptions(
     },
   );
 
-  const filteredModels =
-    query.all === "true"
-      ? models
-      : filterHiddenModels(deps.db, modelsProvider.id, models);
-
   return {
     providers,
     permissionCeiling,
-    models: filteredModels,
+    models,
     selectedOnlyModels,
     modelLoadError: modelResult.modelLoadError,
   };
-}
-
-function filterHiddenModels(
-  db: LoggedWorkSessionDeps["db"],
-  providerId: string,
-  models: AvailableModel[],
-): AvailableModel[] {
-  const raw = getPluginKvValue(db, "model-lens", "model-lens:config:v1");
-  if (raw === undefined) {
-    return models;
-  }
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return models;
-  }
-  if (!parsed || typeof parsed !== "object") {
-    return models;
-  }
-  const hidden = (parsed as { hidden?: Record<string, string[]> }).hidden;
-  if (!hidden || typeof hidden !== "object") {
-    return models;
-  }
-
-  const isHidden = (m: AvailableModel): boolean => {
-    const routeId = m.routeProviderId || providerId;
-    const fullId = m.model;
-    for (const [pId, list] of Object.entries(hidden)) {
-      if (!Array.isArray(list)) continue;
-      if (list.includes(fullId)) return true;
-      const prefix = `${pId}/`;
-      if (fullId.startsWith(prefix) && list.includes(fullId.slice(prefix.length))) return true;
-      if (routeId === pId && list.includes(fullId)) return true;
-    }
-    return false;
-  };
-
-  const remaining = models.filter((m) => !isHidden(m));
-  return remaining.length > 0 ? remaining : models;
 }
 
 async function loadSystemProviderModels(

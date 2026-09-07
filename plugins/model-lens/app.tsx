@@ -14,12 +14,29 @@ import {
   isVisible,
   MAX_MENU_WIDTH_REM,
   MIN_MENU_WIDTH_REM,
+  type HiddenMap,
 } from "./visibility.js";
 
 type LensConfig = PluginRpcResult<(typeof modelLensRpcContract)["getConfig"]>;
 type Catalog = PluginRpcResult<(typeof modelLensRpcContract)["listCatalog"]>;
 
 const STORAGE_WIDTH_KEY = "bb-model-picker-width";
+const STORAGE_HIDDEN_KEY = "bb-model-lens-hidden";
+
+let activeHiddenMap: HiddenMap | null = null;
+try {
+  const storedHidden = typeof localStorage !== "undefined" ? localStorage.getItem(STORAGE_HIDDEN_KEY) : null;
+  if (storedHidden) {
+    activeHiddenMap = JSON.parse(storedHidden) as HiddenMap;
+  }
+} catch {}
+
+function updateStoredHidden(map: HiddenMap): void {
+  activeHiddenMap = map;
+  try {
+    localStorage.setItem(STORAGE_HIDDEN_KEY, JSON.stringify(map));
+  } catch {}
+}
 
 function applyWidth(rem: number): void {
   try {
@@ -60,6 +77,9 @@ function LensSettings() {
       const [c, cat] = await Promise.all([rpc.call("getConfig", null), rpc.call("listCatalog", null)]);
       setConfig(c);
       setCatalog(cat);
+      if (c.hidden) {
+        updateStoredHidden(c.hidden);
+      }
       if (typeof c.menuWidthRem === "number") {
         setSliderWidth(c.menuWidthRem);
         applyWidth(c.menuWidthRem);
@@ -79,6 +99,9 @@ function LensSettings() {
       try {
         const next = await rpc.call("setModelHidden", { providerId, modelId, hidden: !visible });
         setConfig(next);
+        if (next.hidden) {
+          updateStoredHidden(next.hidden);
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       }
@@ -93,7 +116,12 @@ function LensSettings() {
         for (const m of models) {
           latestConfig = await rpc.call("setModelHidden", { providerId, modelId: m.id, hidden: allVisible });
         }
-        if (latestConfig) setConfig(latestConfig);
+        if (latestConfig) {
+          setConfig(latestConfig);
+          if (latestConfig.hidden) {
+            updateStoredHidden(latestConfig.hidden);
+          }
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       }
@@ -116,7 +144,11 @@ function LensSettings() {
 
   const clear = useCallback(async () => {
     try {
-      setConfig(await rpc.call("clearAllHidden", null));
+      const next = await rpc.call("clearAllHidden", null);
+      setConfig(next);
+      if (next.hidden) {
+        updateStoredHidden(next.hidden);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -244,22 +276,61 @@ function LensSettings() {
 
 export default definePluginApp((app) => {
   app.contentScripts.register({
-    id: "model-lens-width",
+    id: "model-lens-interceptor",
     async mount(context) {
+      const originalFetch = window.fetch;
+      window.fetch = async function (input, init) {
+        const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input?.url;
+        if (typeof url === "string" && url.includes("/api/v1/system/execution-options")) {
+          const isAll = url.includes("all=true");
+          if (!isAll) {
+            const res = await originalFetch.call(window, input, init);
+            if (!res.ok) return res;
+            try {
+              const clone = res.clone();
+              const json = await clone.json();
+              if (Array.isArray(json?.models) && activeHiddenMap) {
+                const filtered = json.models.filter((m: { routeProviderId?: string; providerId?: string; id?: string; model?: string }) => {
+                  const routeId = m.routeProviderId || m.providerId || "pi";
+                  const modelId = m.id || m.model || "";
+                  return isVisible({ hidden: activeHiddenMap! }, routeId, modelId);
+                });
+                const modified = { ...json, models: filtered.length > 0 ? filtered : json.models };
+                return new Response(JSON.stringify(modified), {
+                  status: res.status,
+                  statusText: res.statusText,
+                  headers: res.headers,
+                });
+              }
+            } catch {
+              return res;
+            }
+          }
+        }
+        return originalFetch.call(window, input, init);
+      };
+
       try {
-        const res = await fetch("/api/v1/plugins/model-lens/rpc/getConfig", {
+        const res = await originalFetch("/api/v1/plugins/model-lens/rpc/getConfig", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: "null",
           signal: context.signal,
         });
         if (res.ok) {
-          const data = (await res.json()) as { result?: { menuWidthRem?: number } };
+          const data = (await res.json()) as { result?: { menuWidthRem?: number; hidden?: HiddenMap } };
           if (typeof data?.result?.menuWidthRem === "number") {
             applyWidth(data.result.menuWidthRem);
           }
+          if (data?.result?.hidden) {
+            updateStoredHidden(data.result.hidden);
+          }
         }
       } catch {}
+
+      return () => {
+        window.fetch = originalFetch;
+      };
     },
   });
 
