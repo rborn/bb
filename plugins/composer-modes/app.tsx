@@ -296,7 +296,7 @@ function ComposerModePicker() {
             <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
               This persona recommends <strong className="text-foreground font-semibold">{pendingSwitch.targetModelLabel}</strong>, but this thread is currently using <strong className="text-foreground font-semibold">{pendingSwitch.currentModelLabel}</strong>.
             </p>
-            <div className="mt-4 rounded-xl border border-border/80 bg-muted/50 p-3.5 text-[11px] text-muted-foreground leading-relaxed space-y-1">
+            <div className="mt-4 rounded-xl bg-muted/50 p-3.5 text-[11px] text-muted-foreground leading-relaxed space-y-1">
               <div className="font-semibold text-foreground flex items-center gap-1.5">
                 <span>⚡</span> Prompt cache reset
               </div>
