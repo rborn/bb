@@ -35,25 +35,21 @@ describe("composer-modes", () => {
     res = (await host.harness.callRpc("getModes", null)) as { modes: { id: string; isEnabled: boolean }[] };
     expect(res.modes.find((m) => m.id === "tailwind-designer")?.isEnabled).toBe(false);
   });
-  it("rejects builtin delete", async () => {
+  it("rejects deleting the only remaining persona", async () => {
     const host = await hostWithPlugin();
-    await expect(host.harness.callRpc("deleteMode", { id: "agent" } as never)).rejects.toThrow();
-  });
-  it("deletes custom mode", async () => {
-    const host = await hostWithPlugin();
-    await host.harness.callRpc("saveMode", {
-      id: "custom-one",
-      name: "Custom One",
-      icon: "✨",
-      color: "sky",
-      description: "test",
-      promptPrefix: "hi",
-      permissionMode: "full",
-      skills: [],
-      isEnabled: true,
-    } as never);
-    await host.harness.callRpc("deleteMode", { id: "custom-one" } as never);
     const res = (await host.harness.callRpc("getModes", null)) as { modes: { id: string }[] };
-    expect(res.modes.some((m) => m.id === "custom-one")).toBe(false);
+    for (let i = 0; i < res.modes.length - 1; i++) {
+      await host.harness.callRpc("deleteMode", { id: res.modes[i]!.id } as never);
+    }
+    const last = res.modes[res.modes.length - 1]!.id;
+    await expect(host.harness.callRpc("deleteMode", { id: last } as never)).rejects.toThrow(
+      "cannot delete the only remaining persona",
+    );
+  });
+  it("deletes any mode", async () => {
+    const host = await hostWithPlugin();
+    await host.harness.callRpc("deleteMode", { id: "seo" } as never);
+    const res = (await host.harness.callRpc("getModes", null)) as { modes: { id: string }[] };
+    expect(res.modes.some((m) => m.id === "seo")).toBe(false);
   });
 });

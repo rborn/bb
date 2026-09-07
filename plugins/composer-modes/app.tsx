@@ -577,11 +577,29 @@ function SettingsSection() {
                   </label>
                 </td>
                 <td className="px-3 py-2 text-right">
-                  <div className="flex justify-end items-center gap-2">
-                    <button type="button" onClick={() => { setForm({ ...m }); setShowNew(true); }} className="text-xs text-muted-foreground hover:text-foreground hover:underline">Edit</button>
-                    {!m.isBuiltin ? (
-                      <button type="button" onClick={() => { if (confirm(`Delete ${m.name}?`)) void rpc.call("deleteMode", { id: m.id }).then(() => void load()).catch((e) => setError(String(e))); }} className="text-xs text-destructive hover:underline">Delete</button>
-                    ) : null}
+                  <div className="flex justify-end items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => { setForm({ ...m }); setShowNew(true); }}
+                      className="rounded border border-input bg-background px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted transition-colors"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (data.modes.length <= 1) {
+                          setError("Cannot delete the only remaining persona.");
+                          return;
+                        }
+                        if (confirm(`Delete persona "${m.name}"?`)) {
+                          void rpc.call("deleteMode", { id: m.id }).then(() => void load()).catch((e) => setError(String(e)));
+                        }
+                      }}
+                      className="rounded border border-input bg-background px-2.5 py-1 text-xs font-medium text-destructive hover:bg-destructive/10 hover:border-destructive/30 transition-colors"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </td>
               </tr>

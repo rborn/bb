@@ -49,31 +49,15 @@ async function loadConfig(kv: BbPluginApi["storage"]["kv"]): Promise<{
     return { modes: [...defaultModes], activeModeId: "agent" };
   }
   const parsed = composerModesConfigSchema.safeParse(raw);
-  if (!parsed.success) {
+  if (!parsed.success || parsed.data.modes.length === 0) {
     return { modes: [...defaultModes], activeModeId: "agent" };
   }
-  const merged = mergeWithDefaults(parsed.data.modes);
-  const activeExists = merged.some((m) => m.id === parsed.data.activeModeId);
+  const modes = parsed.data.modes;
+  const activeExists = modes.some((m) => m.id === parsed.data.activeModeId);
   return {
-    modes: merged,
-    activeModeId: activeExists ? parsed.data.activeModeId : "agent",
+    modes,
+    activeModeId: activeExists ? parsed.data.activeModeId : (modes[0]?.id ?? "agent"),
   };
-}
-
-function mergeWithDefaults(stored: ComposerMode[]): ComposerMode[] {
-  const byId = new Map(stored.map((m) => [m.id, m]));
-  const result: ComposerMode[] = [];
-  for (const def of defaultModes) {
-    const existing = byId.get(def.id);
-    if (existing) {
-      result.push({ ...def, ...existing, isBuiltin: true });
-      byId.delete(def.id);
-    } else {
-      result.push(def);
-    }
-  }
-  for (const [, m] of byId) result.push(m);
-  return result;
 }
 
 async function saveConfig(
@@ -119,12 +103,12 @@ export default async function plugin(bb: BbPluginApi) {
       return { mode: cfg.modes.find((m) => m.id === parsed.data.id)! };
     },
     async deleteMode(input: { id: string }) {
-      if (defaultModes.some((m: ComposerMode) => m.id === input.id)) throw new Error("cannot delete built-in mode");
       const cfg = await getConfig();
       const idx = cfg.modes.findIndex((m: ComposerMode) => m.id === input.id);
       if (idx === -1) throw new Error(`mode "${input.id}" not found`);
+      if (cfg.modes.length <= 1) throw new Error("cannot delete the only remaining persona");
       cfg.modes.splice(idx, 1);
-      if (cfg.activeModeId === input.id) cfg.activeModeId = "agent";
+      if (cfg.activeModeId === input.id) cfg.activeModeId = cfg.modes[0]?.id ?? "agent";
       await saveConfig(bb.storage.kv, cfg);
       cached = cfg;
       bb.realtime.publish(REALTIME_CHANNEL, { id: input.id });
