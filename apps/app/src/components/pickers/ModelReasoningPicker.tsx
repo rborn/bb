@@ -112,8 +112,6 @@ const MODEL_SEARCH_MIN_OPTIONS = 5;
 const MODEL_PICKER_MENU_WIDTH_CLASS_NAME =
   "w-[var(--model-picker-menu-width,20rem)] min-w-52 max-w-[calc(100vw-1rem)]";
 
-import { fuzzyFilter } from "./model-fuzzy-search.js";
-
 function splitModelLabelTag(label: string): ModelLabelParts {
   const match = label.match(/^(.*\S)\s*\(([^()]+)\)$/u);
   if (!match) {
@@ -131,15 +129,6 @@ const PROVIDER_SEARCH_ALIASES: Record<string, string> = {
   google: "google gemini gemma",
   cursor: "cursor",
 };
-
-function modelSearchText(
-  option: ModelPickerOption,
-  brandPrefix: string | undefined,
-): string {
-  const providerKey = (option.routeProviderId ?? "").toLowerCase();
-  const aliases = PROVIDER_SEARCH_ALIASES[providerKey] ?? providerKey;
-  return `${stripModelBrandPrefix(option.label, brandPrefix)} ${option.routeProviderId ?? ""} ${aliases} ${option.value}`;
-}
 type ModelNavRow =
   | { kind: "model"; option: ModelPickerOption }
   | { kind: "more-toggle" };
@@ -473,10 +462,18 @@ export function ModelReasoningPicker({
       query: searchQuery,
       getLabel: (option) =>
         stripModelBrandPrefix(option.label, activeBrandPrefix),
-      getAliases: (option) =>
-        option.routeProviderId
-          ? [option.routeProviderId, option.value]
-          : [option.value],
+      getAliases: (option) => {
+        const providerKey = (option.routeProviderId ?? "").toLowerCase();
+        const alias = PROVIDER_SEARCH_ALIASES[providerKey];
+        const aliases = [option.value];
+        if (option.routeProviderId) {
+          aliases.push(option.routeProviderId);
+        }
+        if (alias) {
+          aliases.push(alias);
+        }
+        return aliases;
+      },
     });
   }, [
     activeBrandPrefix,
