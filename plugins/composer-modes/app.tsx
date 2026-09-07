@@ -274,9 +274,18 @@ function ComposerModePicker() {
 
           </div>
           <div className="mt-2.5 border-t border-border pt-2">
-            <a href="#settings" onClick={() => setOpen(false)} className="block rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
-              Configure personas in Settings →
-            </a>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                window.history.pushState({}, "", "/settings/plugins/composer-modes");
+                window.dispatchEvent(new PopStateEvent("popstate"));
+              }}
+              className="flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+            >
+              <span>Configure personas in Settings</span>
+              <span>→</span>
+            </button>
           </div>
 
           </div>
@@ -286,7 +295,7 @@ function ComposerModePicker() {
       {pendingSwitch ? createPortal((
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs" onClick={() => setPendingSwitch(null)}>
           <div
-            className="w-full max-w-md rounded-2xl border border-border bg-popover p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150"
+            className="w-full max-w-md rounded-lg border border-border bg-popover p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="text-base font-semibold text-foreground">
