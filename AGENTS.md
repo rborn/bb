@@ -33,6 +33,12 @@
 - Build official plugins with `node --conditions=source --import tsx scripts/build-official-plugins.mjs <plugin-name>`.
 - Always verify plugin and UI behavior against the running dev instance (`http://127.0.0.1:14462` / `22462` via `agent-browser` or DevTools/curl), never by isolated unit-test mocking alone.
 - When a plugin triggers mutations (e.g. updating a thread's model, title, or settings), a raw background `fetch('/api/v1/threads/:id', { method: 'PATCH' })` DOES NOT update the UI because TanStack Query caches thread state and will not re-render. Coordinate with app state or dispatch query invalidation events, never blind network calls.
+- Never invent custom DOM events (e.g. `bb:set-model`, `bb:thread-updated`), fake window signals, or hallucinated `localStorage` keys (e.g. `bb-selected-model`). Always grep the codebase for existing keys and listeners before writing state logic.
+- To update an existing thread's model from a plugin, perform the update on the server using `await bb.sdk.threads.update({ threadId, model })` and notify the client via `bb.realtime.publish("threads-changed", { id: threadId })`. The server's WebSocket message is what invalidates TanStack Query; DOM `window.dispatchEvent` is ignored.
+- For new threads, the composer model preference is stored in `localStorage` under exact keys:
+  - `bb.promptbox.provider`: provider id string (e.g. `"pi"`).
+  - `bb.promptbox.model-${providerId}-1`: JSON-encoded model string (e.g. `JSON.stringify("cursor/auto")`).
+  - `bb.promptbox.model`: fallback model string.
 - New threads have no thread ID before the first turn is submitted (`scope.threadId` is undefined or local). Model and execution preferences for new threads live in client state and `localStorage`, not backend thread rows.
 - When removing or changing UI badges or labels, remove them cleanly across triggers, dropdown items, tooltips, and banners. Never leave commented-out `{/* hidden */ null}` artifacts, and never wipe backend entity descriptions to mask UI labels.
 - Every end-user feature must also be usable through the SDK and `bb` CLI; ship and document these surfaces with the UI.
